@@ -18,7 +18,7 @@ class VungleAdapter : PartnerAdapter {
         /**
          * The tag used for log messages.
          */
-        private const val TAG = "[VungleAdapter]"
+        private val TAG = "[${this::class.java.simpleName}]"
 
         /**
          * Key for parsing the Vungle app ID.
@@ -37,7 +37,7 @@ class VungleAdapter : PartnerAdapter {
     private var gdprApplies = false
 
     /**
-     * Track the Vungle ad markup for fullscreen ad load --> show cycle, keyed by the Vungle placement ID.
+     * Track the Vungle ad markup for fullscreen ad load --> ad show cycle, keyed by the Vungle placement ID.
      */
     private var adms: MutableMap<String, String?> = mutableMapOf()
 
@@ -57,7 +57,7 @@ class VungleAdapter : PartnerAdapter {
      * Get the Vungle SDK version.
      */
     override val partnerSdkVersion: String
-        get() = BuildConfig.VERSION_NAME
+        get() = com.vungle.warren.BuildConfig.VERSION_NAME
 
     /**
      * Get the Vungle adapter version.
@@ -67,7 +67,7 @@ class VungleAdapter : PartnerAdapter {
      * of the partner SDK, and `Adapter` is the version of the adapter.
      */
     override val adapterVersion: String
-        get() = BuildConfig.VERSION_NAME
+        get() = BuildConfig.HELIUM_VUNGLE_ADAPTER_VERSION
 
     /**
      * Initialize the Vungle SDK so that it is ready to request ads.
@@ -279,7 +279,6 @@ class VungleAdapter : PartnerAdapter {
                 bannerAdConfig,
                 object : LoadAdCallback {
                     override fun onAdLoad(placementId: String) {
-
                         if (!Banners.canPlayAd(
                                 placementId,
                                 request.adm,

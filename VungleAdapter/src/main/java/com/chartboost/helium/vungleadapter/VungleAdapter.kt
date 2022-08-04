@@ -42,6 +42,11 @@ class VungleAdapter : PartnerAdapter {
     private var adms: MutableMap<String, String?> = mutableMapOf()
 
     /**
+     * Set holding all currently showing Vungle banner placements.
+     */
+    private val showingBanners: MutableSet<String> = mutableSetOf()
+
+    /**
      * Get the partner name for internal uses.
      */
     override val partnerId: String
@@ -272,6 +277,11 @@ class VungleAdapter : PartnerAdapter {
         val bannerAdConfig = BannerAdConfig()
         bannerAdConfig.adSize = getVungleBannerSize(request.size)
 
+        if (showingBanners.contains(adLoadRequest.partnerPlacement)) {
+            LogController.d("$TAG Vungle is already showing a banner. Failing the banner load for ${adLoadRequest.heliumPlacement}")
+            return Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_ERROR))
+        }
+
         return suspendCoroutine { continuation ->
             Banners.loadBanner(
                 request.partnerPlacement,
@@ -312,7 +322,7 @@ class VungleAdapter : PartnerAdapter {
                                 }
 
                                 override fun onAdEnd(id: String) {
-                                    // Ignored.
+                                    showingBanners.remove(request.partnerPlacement)
                                 }
 
                                 override fun onAdClick(id: String) {
@@ -333,6 +343,7 @@ class VungleAdapter : PartnerAdapter {
                                     placementReferenceId: String,
                                     exception: VungleException
                                 ) {
+                                    showingBanners.remove(request.partnerPlacement)
                                     LogController.e(
                                         "$TAG Vungle failed to show the banner ad for placement " +
                                                 "$placementId. Error code: ${exception.exceptionCode}. " +
@@ -341,6 +352,7 @@ class VungleAdapter : PartnerAdapter {
                                 }
 
                                 override fun onAdViewed(id: String) {
+                                    showingBanners.add(request.partnerPlacement)
                                     listener.onPartnerAdImpression(
                                         createPartnerAd(null, request)
                                     )

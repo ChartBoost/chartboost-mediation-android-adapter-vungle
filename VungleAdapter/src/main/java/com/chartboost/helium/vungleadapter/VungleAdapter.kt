@@ -277,8 +277,8 @@ class VungleAdapter : PartnerAdapter {
         val bannerAdConfig = BannerAdConfig()
         bannerAdConfig.adSize = getVungleBannerSize(request.size)
 
-        if (showingBanners.contains(adLoadRequest.partnerPlacement)) {
-            LogController.d("$TAG Vungle is already showing a banner. Failing the banner load for ${adLoadRequest.heliumPlacement}")
+        if (showingBanners.contains(request.partnerPlacement)) {
+            LogController.d("$TAG Vungle is already showing a banner. Failing the banner load for ${request.heliumPlacement}")
             return Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_ERROR))
         }
 

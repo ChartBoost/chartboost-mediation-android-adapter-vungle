@@ -16,6 +16,86 @@ import kotlin.coroutines.suspendCoroutine
 class VungleAdapter : PartnerAdapter {
     companion object {
         /**
+         * Flag to optionally set to disable Vungle's banner refresh. It must be set before the Vungle
+         * SDK is initialized for it to take effect.
+         */
+        public var disableBannerRefresh = false
+            set(value) {
+                field = value
+                LogController.d("$TAG Vungle banner ad refresh is ${if (value) "disabled" else "enabled"}.")
+            }
+
+        /**
+         * Flag to optionally set to enable Vungle's mute setting. It can be set at any time and
+         * will take effect on the next ad request.
+         */
+        public var mute = false
+            set(value) {
+                field = value
+                LogController.d("$TAG Vungle mute setting is ${if (value) "enabled" else "disabled"}.")
+            }
+
+        /**
+         * Flag to optionally set to enable/disable immersive mode for API 19 and newer. It can be
+         * set at any time and will take effect on the next ad request. Defaults to true.
+         *
+         * https://developer.android.com/training/system-ui/immersive.html.
+         */
+        public var immersiveMode = true
+            set(value) {
+                field = value
+                LogController.d("$TAG Vungle immersive mode is ${if (value) "enabled" else "disabled"}.")
+            }
+
+        /**
+         * Flag to optionally set to specify whether the back button will be immediately enabled
+         * during the video ad, or it will be inactive until the on screen close button appears (the default behavior).
+         * It can be set at any time and will take effect on the next ad request.
+         *
+         * Once enabled, the Android back button allows the user to skip the video ad and proceed
+         * to the post-roll if one exists. If the ad does not have a post-roll, it simply ends.
+         */
+        public var backBtnImmediatelyEnabled = false
+            set(value) {
+                field = value
+                LogController.d("$TAG Vungle back button setting is ${if (value) "enabled" else "disabled"}.")
+            }
+
+        /**
+         * Flag to optionally set to specify whether the video transition animation should be enabled.
+         * It can be set at any time and will take effect on the next ad request.
+         *
+         * The default is enabled, which is a fade-in/fade-out animation.
+         */
+        public var transitionAnimationEnabled = true
+            set(value) {
+                field = value
+                LogController.d("$TAG Vungle transition animation setting is ${if (value) "enabled" else "disabled"}.")
+            }
+
+        /**
+         * If set, Vungle will check if it has an ad that can be rendered in the specified orientation.
+         * This flag can be set at any time and will take effect on the next ad request.
+         *
+         * See [AdConfig.Orientation] for available options.
+         */
+        public var adOrientation: Int? = null
+            set(value) {
+                field = value
+                LogController.d(
+                    "$TAG Vungle ad orientation set to ${
+                        when (value) {
+                            AdConfig.PORTRAIT -> "PORTRAIT"
+                            AdConfig.LANDSCAPE -> "LANDSCAPE"
+                            AdConfig.AUTO_ROTATE -> "AUTO_ROTATE"
+                            AdConfig.MATCH_VIDEO -> "MATCH_VIDEO"
+                            else -> "UNSPECIFIED"
+                        }
+                    }."
+                )
+            }
+
+        /**
          * The tag used for log messages.
          */
         private val TAG = "[${this::class.java.simpleName}]"
@@ -102,7 +182,9 @@ class VungleAdapter : PartnerAdapter {
                     }
 
                     override fun onAutoCacheAdAvailable(placementId: String) {}
-                })
+                }, VungleSettings.Builder().apply {
+                    if (disableBannerRefresh) disableBannerRefresh()
+                }.build())
             } ?: run {
                 LogController.e("$TAG Vungle failed to initialize. Missing App ID.")
                 continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_SDK_NOT_INITIALIZED)))
@@ -276,6 +358,7 @@ class VungleAdapter : PartnerAdapter {
     ): Result<PartnerAd> {
         val bannerAdConfig = BannerAdConfig()
         bannerAdConfig.adSize = getVungleBannerSize(request.size)
+        bannerAdConfig.setMuted(mute)
 
         if (showingBanners.contains(request.partnerPlacement)) {
             LogController.d("$TAG Vungle is already showing a banner. Failing the banner load for ${request.heliumPlacement}")
@@ -414,11 +497,18 @@ class VungleAdapter : PartnerAdapter {
         listeners[request.heliumPlacement] = listener
         adms[request.partnerPlacement] = request.adm
 
+        val adConfig = AdConfig()
+        adConfig.setMuted(mute)
+        adConfig.setTransitionAnimationEnabled(transitionAnimationEnabled)
+        adConfig.setBackButtonImmediatelyEnabled(backBtnImmediatelyEnabled)
+        adConfig.setImmersiveMode(immersiveMode)
+        adOrientation?.let { adConfig.adOrientation = it }
+
         return suspendCoroutine { continuation ->
             Vungle.loadAd(
                 request.partnerPlacement,
                 request.adm,
-                null,
+                adConfig,
                 object : LoadAdCallback {
                     override fun onAdLoad(id: String) {
                         continuation.resume(

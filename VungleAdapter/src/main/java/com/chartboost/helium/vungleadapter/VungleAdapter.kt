@@ -22,7 +22,7 @@ class VungleAdapter : PartnerAdapter {
         public var disableBannerRefresh = false
             set(value) {
                 field = value
-                LogController.d("$TAG Vungle banner ad refresh is ${if (value) "disabled" else "enabled"}.")
+                LogController.d("Vungle banner ad refresh is ${if (value) "disabled" else "enabled"}.")
             }
 
         /**
@@ -32,7 +32,7 @@ class VungleAdapter : PartnerAdapter {
         public var mute = false
             set(value) {
                 field = value
-                LogController.d("$TAG Vungle mute setting is ${if (value) "enabled" else "disabled"}.")
+                LogController.d("Vungle mute setting is ${if (value) "enabled" else "disabled"}.")
             }
 
         /**
@@ -44,7 +44,7 @@ class VungleAdapter : PartnerAdapter {
         public var immersiveMode = true
             set(value) {
                 field = value
-                LogController.d("$TAG Vungle immersive mode is ${if (value) "enabled" else "disabled"}.")
+                LogController.d("Vungle immersive mode is ${if (value) "enabled" else "disabled"}.")
             }
 
         /**
@@ -58,7 +58,7 @@ class VungleAdapter : PartnerAdapter {
         public var backBtnImmediatelyEnabled = false
             set(value) {
                 field = value
-                LogController.d("$TAG Vungle back button setting is ${if (value) "enabled" else "disabled"}.")
+                LogController.d("Vungle back button setting is ${if (value) "enabled" else "disabled"}.")
             }
 
         /**
@@ -70,7 +70,7 @@ class VungleAdapter : PartnerAdapter {
         public var transitionAnimationEnabled = true
             set(value) {
                 field = value
-                LogController.d("$TAG Vungle transition animation setting is ${if (value) "enabled" else "disabled"}.")
+                LogController.d("Vungle transition animation setting is ${if (value) "enabled" else "disabled"}.")
             }
 
         /**
@@ -83,7 +83,7 @@ class VungleAdapter : PartnerAdapter {
             set(value) {
                 field = value
                 LogController.d(
-                    "$TAG Vungle ad orientation set to ${
+                    "Vungle ad orientation set to ${
                         when (value) {
                             AdConfig.PORTRAIT -> "PORTRAIT"
                             AdConfig.LANDSCAPE -> "LANDSCAPE"
@@ -94,11 +94,6 @@ class VungleAdapter : PartnerAdapter {
                     }."
                 )
             }
-
-        /**
-         * The tag used for log messages.
-         */
-        private val TAG = "[${this::class.java.simpleName}]"
 
         /**
          * Key for parsing the Vungle app ID.
@@ -173,11 +168,11 @@ class VungleAdapter : PartnerAdapter {
                             adapterVersion
                         )
 
-                        continuation.resume(Result.success(LogController.i("$TAG Vungle successfully initialized.")))
+                        continuation.resume(Result.success(LogController.i("Vungle successfully initialized.")))
                     }
 
                     override fun onError(exception: VungleException) {
-                        LogController.e("$TAG Vungle failed to initialize. Error: $exception")
+                        LogController.e("Vungle failed to initialize. Error: $exception")
                         continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_SDK_NOT_INITIALIZED)))
                     }
 
@@ -186,7 +181,7 @@ class VungleAdapter : PartnerAdapter {
                     if (disableBannerRefresh) disableBannerRefresh()
                 }.build())
             } ?: run {
-                LogController.e("$TAG Vungle failed to initialize. Missing App ID.")
+                LogController.e("Vungle failed to initialize. Missing App ID.")
                 continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_SDK_NOT_INITIALIZED)))
             }
         }
@@ -361,7 +356,7 @@ class VungleAdapter : PartnerAdapter {
         bannerAdConfig.setMuted(mute)
 
         if (showingBanners.contains(request.partnerPlacement)) {
-            LogController.d("$TAG Vungle is already showing a banner. Failing the banner load for ${request.heliumPlacement}")
+            LogController.d("Vungle is already showing a banner. Failing the banner load for ${request.heliumPlacement}")
             return Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_ERROR))
         }
 
@@ -378,7 +373,7 @@ class VungleAdapter : PartnerAdapter {
                                 bannerAdConfig.adSize
                             )
                         ) {
-                            LogController.e("$TAG Vungle failed to load banner ad for placement $placementId.")
+                            LogController.e("Vungle failed to load banner ad for placement $placementId.")
                             continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_ERROR)))
                             return
                         }
@@ -428,7 +423,7 @@ class VungleAdapter : PartnerAdapter {
                                 ) {
                                     showingBanners.remove(request.partnerPlacement)
                                     LogController.e(
-                                        "$TAG Vungle failed to show the banner ad for placement " +
+                                        "Vungle failed to show the banner ad for placement " +
                                                 "$placementId. Error code: ${exception.exceptionCode}. " +
                                                 "Message: ${exception.message}"
                                     )
@@ -447,14 +442,14 @@ class VungleAdapter : PartnerAdapter {
                                 Result.success(createPartnerAd(it, request))
                             )
                         } ?: run {
-                            LogController.e("$TAG Vungle failed to load a banner ad for placement $placementId.")
+                            LogController.e("Vungle failed to load a banner ad for placement $placementId.")
                             continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_ERROR)))
                         }
                     }
 
                     override fun onError(placementId: String, exception: VungleException) {
                         LogController.e(
-                            "$TAG Vungle failed to load a banner ad for placement " +
+                            "Vungle failed to load a banner ad for placement " +
                                     "$placementId. Error code: ${exception.exceptionCode}. " +
                                     "Message: ${exception.message}"
                         )
@@ -518,7 +513,7 @@ class VungleAdapter : PartnerAdapter {
 
                     override fun onError(placementId: String?, exception: VungleException?) {
                         LogController.e(
-                            "$TAG Vungle failed to load fullscreen ad for placement " +
+                            "Vungle failed to load fullscreen ad for placement " +
                                     "$placementId. Error code: ${exception?.exceptionCode}. " +
                                     "Message: ${exception?.message}"
                         )
@@ -590,7 +585,7 @@ class VungleAdapter : PartnerAdapter {
                             exception: VungleException
                         ) {
                             LogController.e(
-                                "$TAG Vungle failed to show the fullscreen ad for placement " +
+                                "Vungle failed to show the fullscreen ad for placement " +
                                         "$placementReferenceId. Error code: ${exception.exceptionCode}. " +
                                         "Message: ${exception.message}"
                             )
@@ -606,7 +601,7 @@ class VungleAdapter : PartnerAdapter {
                     })
             } else {
                 LogController.e(
-                    "$TAG Vungle failed to show the fullscreen ad for placement " +
+                    "Vungle failed to show the fullscreen ad for placement " +
                             "${partnerAd.request.partnerPlacement}."
                 )
                 continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_ERROR)))
@@ -626,7 +621,7 @@ class VungleAdapter : PartnerAdapter {
             if (ad is VungleBanner) ad.destroyAd()
             Result.success(partnerAd)
         } ?: run {
-            LogController.e("$TAG Failed to destroy Vungle banner ad. Ad is null.")
+            LogController.e("Failed to destroy Vungle banner ad. Ad is null.")
             Result.failure(HeliumAdException(HeliumErrorCode.INTERNAL))
         }
     }

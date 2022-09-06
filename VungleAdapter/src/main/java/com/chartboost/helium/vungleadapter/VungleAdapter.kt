@@ -411,7 +411,7 @@ class VungleAdapter : PartnerAdapter {
                                 bannerAdConfig.adSize
                             )
                         ) {
-                            PartnerLogController.log(LOAD_FAILED, "Placement $placementId.")
+                            PartnerLogController.log(LOAD_FAILED, "Placement: $placementId.")
                             continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_ERROR)))
                             return
                         }
@@ -463,7 +463,7 @@ class VungleAdapter : PartnerAdapter {
                                     showingBanners.remove(request.partnerPlacement)
                                     PartnerLogController.log(
                                         SHOW_FAILED,
-                                        "Placement $placementId. Error code: ${exception.exceptionCode}. " +
+                                        "Placement: $placementId. Error code: ${exception.exceptionCode}. " +
                                                 "Message: ${exception.message}"
                                     )
                                 }
@@ -483,7 +483,7 @@ class VungleAdapter : PartnerAdapter {
                                 Result.success(createPartnerAd(it, request))
                             )
                         } ?: run {
-                            PartnerLogController.log(LOAD_FAILED, "Placement $placementId.")
+                            PartnerLogController.log(LOAD_FAILED, "Placement: $placementId.")
                             continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_ERROR)))
                         }
                     }
@@ -491,7 +491,7 @@ class VungleAdapter : PartnerAdapter {
                     override fun onError(placementId: String, exception: VungleException) {
                         PartnerLogController.log(
                             LOAD_FAILED,
-                            "Placement $placementId. Error code: ${exception.exceptionCode}. " +
+                            "Placement: $placementId. Error code: ${exception.exceptionCode}. " +
                                     "Message: ${exception.message}"
                         )
                         continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.NO_FILL)))
@@ -556,7 +556,7 @@ class VungleAdapter : PartnerAdapter {
                     override fun onError(placementId: String?, exception: VungleException?) {
                         PartnerLogController.log(
                             LOAD_FAILED,
-                            "Placement $placementId. Error code: ${exception?.exceptionCode}. " +
+                            "Placement: $placementId. Error code: ${exception?.exceptionCode}. " +
                                     "Message: ${exception?.message}"
                         )
                         continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.NO_FILL)))

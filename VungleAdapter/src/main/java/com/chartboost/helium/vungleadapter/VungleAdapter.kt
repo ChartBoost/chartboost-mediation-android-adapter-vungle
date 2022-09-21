@@ -181,7 +181,7 @@ class VungleAdapter : PartnerAdapter {
         PartnerLogController.log(SETUP_STARTED)
 
         return suspendCoroutine { continuation ->
-            partnerConfiguration.credentials.optString(APP_ID_KEY).takeIf { it.isNotBlank() }
+            partnerConfiguration.credentials.optString(APP_ID_KEY).trim().takeIf { it.isNotEmpty() }
                 ?.let { appId ->
                     Vungle.init(appId, context.applicationContext, object : InitCallback {
                         override fun onSuccess() {

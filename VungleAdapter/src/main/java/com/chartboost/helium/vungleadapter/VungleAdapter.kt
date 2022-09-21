@@ -181,27 +181,34 @@ class VungleAdapter : PartnerAdapter {
         PartnerLogController.log(SETUP_STARTED)
 
         return suspendCoroutine { continuation ->
-            partnerConfiguration.credentials[APP_ID_KEY]?.let { appId ->
-                Vungle.init(appId, context.applicationContext, object : InitCallback {
-                    override fun onSuccess() {
-                        Plugin.addWrapperInfo(
-                            VungleApiClient.WrapperFramework.vunglehbs,
-                            adapterVersion
-                        )
+            partnerConfiguration.credentials.optString(APP_ID_KEY).takeIf { it.isNotBlank() }
+                ?.let { appId ->
+                    Vungle.init(appId, context.applicationContext, object : InitCallback {
+                        override fun onSuccess() {
+                            Plugin.addWrapperInfo(
+                                VungleApiClient.WrapperFramework.vunglehbs,
+                                adapterVersion
+                            )
 
-                        continuation.resume(Result.success(PartnerLogController.log(SETUP_SUCCEEDED)))
-                    }
+                            continuation.resume(
+                                Result.success(
+                                    PartnerLogController.log(
+                                        SETUP_SUCCEEDED
+                                    )
+                                )
+                            )
+                        }
 
-                    override fun onError(exception: VungleException) {
-                        PartnerLogController.log(SETUP_FAILED, "Error: $exception")
-                        continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_SDK_NOT_INITIALIZED)))
-                    }
+                        override fun onError(exception: VungleException) {
+                            PartnerLogController.log(SETUP_FAILED, "Error: $exception")
+                            continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_SDK_NOT_INITIALIZED)))
+                        }
 
-                    override fun onAutoCacheAdAvailable(placementId: String) {}
-                }, VungleSettings.Builder().apply {
-                    if (disableBannerRefresh) disableBannerRefresh()
-                }.build())
-            } ?: run {
+                        override fun onAutoCacheAdAvailable(placementId: String) {}
+                    }, VungleSettings.Builder().apply {
+                        if (disableBannerRefresh) disableBannerRefresh()
+                    }.build())
+                } ?: run {
                 PartnerLogController.log(SETUP_FAILED, "Missing App ID.")
                 continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_SDK_NOT_INITIALIZED)))
             }

@@ -8,6 +8,7 @@ import com.chartboost.heliumsdk.utils.PartnerLogController.PartnerAdapterEvents.
 import com.vungle.warren.*
 import com.vungle.warren.Vungle.Consent
 import com.vungle.warren.error.VungleException
+import com.vungle.warren.error.VungleException.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -199,7 +200,7 @@ class VungleAdapter : PartnerAdapter {
 
                         override fun onError(exception: VungleException) {
                             PartnerLogController.log(SETUP_FAILED, "Error: $exception")
-                            continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_SDK_NOT_INITIALIZED)))
+                            continuation.resume(Result.failure(HeliumAdException(getHeliumErrorCode(exception))))
                         }
 
                         override fun onAutoCacheAdAvailable(placementId: String) {}
@@ -518,7 +519,7 @@ class VungleAdapter : PartnerAdapter {
                             "Placement: $placementId. Error code: ${exception.exceptionCode}. " +
                                     "Message: ${exception.message}"
                         )
-                        continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.NO_FILL)))
+                        continuation.resume(Result.failure(HeliumAdException(getHeliumErrorCode(exception))))
                     }
                 }
             )
@@ -583,7 +584,7 @@ class VungleAdapter : PartnerAdapter {
                             "Placement: $placementId. Error code: ${exception?.exceptionCode}. " +
                                     "Message: ${exception?.message}"
                         )
-                        continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.NO_FILL)))
+                        continuation.resume(Result.failure(HeliumAdException(getHeliumErrorCode(exception))))
                     }
                 }
             )
@@ -665,7 +666,7 @@ class VungleAdapter : PartnerAdapter {
                                         "Message: ${exception.message}"
                             )
 
-                            continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_ERROR)))
+                            continuation.resume(Result.failure(HeliumAdException(getHeliumErrorCode(exception))))
                         }
 
                         override fun onAdViewed(id: String) {
@@ -704,5 +705,21 @@ class VungleAdapter : PartnerAdapter {
             PartnerLogController.log(INVALIDATE_FAILED, "Ad is null.")
             Result.failure(HeliumAdException(HeliumErrorCode.INTERNAL))
         }
+    }
+
+    /**
+     * Convert a given Vungle exception into a [HeliumErrorCode].
+     *
+     * @param exception The Vungle exception to convert.
+     *
+     * @return The corresponding [HeliumErrorCode].
+     */
+    private fun getHeliumErrorCode(exception: VungleException?) = when(exception?.exceptionCode) {
+        NO_SERVE, AD_FAILED_TO_DOWNLOAD, NO_AUTO_CACHED_PLACEMENT -> HeliumErrorCode.NO_FILL
+        SERVER_ERROR, SERVER_TEMPORARY_UNAVAILABLE, ASSET_DOWNLOAD_ERROR -> HeliumErrorCode.SERVER_ERROR
+        NETWORK_ERROR, NETWORK_UNREACHABLE -> HeliumErrorCode.NO_CONNECTIVITY
+        VUNGLE_NOT_INTIALIZED -> HeliumErrorCode.PARTNER_SDK_NOT_INITIALIZED
+        CONFIGURATION_ERROR, UNSUPPORTED_CONFIGURATION, MISSING_REQUIRED_ARGUMENTS_FOR_INIT, PLACEMENT_NOT_FOUND -> HeliumErrorCode.INVALID_CONFIG
+        else -> HeliumErrorCode.PARTNER_ERROR
     }
 }

@@ -7,6 +7,6 @@ pluginManagement {
 }
 
 rootProject.name = "VungleAdapter"
-include ':VungleAdapter'
-include ':android-helium-sdk'
-include ':Helium'
+include(":VungleAdapter")
+include(":android-helium-sdk")
+include(":Helium")

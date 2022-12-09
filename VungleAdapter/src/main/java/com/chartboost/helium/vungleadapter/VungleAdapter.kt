@@ -200,7 +200,7 @@ class VungleAdapter : PartnerAdapter {
 
                         override fun onError(exception: VungleException) {
                             PartnerLogController.log(SETUP_FAILED, "Error: $exception")
-                            continuation.resume(Result.failure(HeliumAdException(getHeliumErrorCode(exception))))
+                            continuation.resume(Result.failure(HeliumAdException(getHeliumError(exception))))
                         }
 
                         override fun onAutoCacheAdAvailable(placementId: String) {}
@@ -209,7 +209,7 @@ class VungleAdapter : PartnerAdapter {
                     }.build())
                 } ?: run {
                 PartnerLogController.log(SETUP_FAILED, "Missing App ID.")
-                continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_SDK_NOT_INITIALIZED)))
+                continuation.resume(Result.failure(HeliumAdException(HeliumError.HE_INITIALIZATION_FAILURE_INVALID_CREDENTIALS)))
             }
         }
     }
@@ -420,7 +420,7 @@ class VungleAdapter : PartnerAdapter {
                 LOAD_FAILED,
                 "Vungle is already showing a banner. Failing the banner load for ${request.heliumPlacement}"
             )
-            return Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_ERROR))
+            return Result.failure(HeliumAdException(HeliumError.HE_LOAD_FAILURE_SHOW_IN_PROGRESS))
         }
 
         return suspendCoroutine { continuation ->
@@ -437,7 +437,7 @@ class VungleAdapter : PartnerAdapter {
                             )
                         ) {
                             PartnerLogController.log(LOAD_FAILED, "Placement: $placementId.")
-                            continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_ERROR)))
+                            continuation.resume(Result.failure(HeliumAdException(HeliumError.HE_LOAD_FAILURE_MISMATCHED_AD_PARAMS)))
                             return
                         }
 
@@ -509,7 +509,7 @@ class VungleAdapter : PartnerAdapter {
                             )
                         } ?: run {
                             PartnerLogController.log(LOAD_FAILED, "Placement: $placementId.")
-                            continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_ERROR)))
+                            continuation.resume(Result.failure(HeliumAdException(HeliumError.HE_LOAD_FAILURE_UNKNOWN)))
                         }
                     }
 
@@ -519,7 +519,7 @@ class VungleAdapter : PartnerAdapter {
                             "Placement: $placementId. Error code: ${exception.exceptionCode}. " +
                                     "Message: ${exception.message}"
                         )
-                        continuation.resume(Result.failure(HeliumAdException(getHeliumErrorCode(exception))))
+                        continuation.resume(Result.failure(HeliumAdException(getHeliumError(exception))))
                     }
                 }
             )
@@ -584,7 +584,7 @@ class VungleAdapter : PartnerAdapter {
                             "Placement: $placementId. Error code: ${exception?.exceptionCode}. " +
                                     "Message: ${exception?.message}"
                         )
-                        continuation.resume(Result.failure(HeliumAdException(getHeliumErrorCode(exception))))
+                        continuation.resume(Result.failure(HeliumAdException(getHeliumError(exception))))
                     }
                 }
             )
@@ -666,7 +666,7 @@ class VungleAdapter : PartnerAdapter {
                                         "Message: ${exception.message}"
                             )
 
-                            continuation.resume(Result.failure(HeliumAdException(getHeliumErrorCode(exception))))
+                            continuation.resume(Result.failure(HeliumAdException(getHeliumError(exception))))
                         }
 
                         override fun onAdViewed(id: String) {
@@ -683,7 +683,7 @@ class VungleAdapter : PartnerAdapter {
                     "Vungle failed to show the fullscreen ad for placement " +
                             "${partnerAd.request.partnerPlacement}."
                 )
-                continuation.resume(Result.failure(HeliumAdException(HeliumErrorCode.PARTNER_ERROR)))
+                continuation.resume(Result.failure(HeliumAdException(HeliumError.HE_SHOW_FAILURE_UNKNOWN)))
             }
         }
     }
@@ -703,23 +703,24 @@ class VungleAdapter : PartnerAdapter {
             Result.success(partnerAd)
         } ?: run {
             PartnerLogController.log(INVALIDATE_FAILED, "Ad is null.")
-            Result.failure(HeliumAdException(HeliumErrorCode.INTERNAL))
+            Result.failure(HeliumAdException(HeliumError.HE_INVALIDATE_FAILURE_AD_NOT_FOUND))
         }
     }
 
     /**
-     * Convert a given Vungle exception into a [HeliumErrorCode].
+     * Convert a given Vungle exception into a [HeliumError].
      *
      * @param exception The Vungle exception to convert.
      *
-     * @return The corresponding [HeliumErrorCode].
+     * @return The corresponding [HeliumError].
      */
-    private fun getHeliumErrorCode(exception: VungleException?) = when(exception?.exceptionCode) {
-        NO_SERVE, AD_FAILED_TO_DOWNLOAD, NO_AUTO_CACHED_PLACEMENT -> HeliumErrorCode.NO_FILL
-        SERVER_ERROR, SERVER_TEMPORARY_UNAVAILABLE, ASSET_DOWNLOAD_ERROR -> HeliumErrorCode.SERVER_ERROR
-        NETWORK_ERROR, NETWORK_UNREACHABLE -> HeliumErrorCode.NO_CONNECTIVITY
-        VUNGLE_NOT_INTIALIZED -> HeliumErrorCode.PARTNER_SDK_NOT_INITIALIZED
-        CONFIGURATION_ERROR, UNSUPPORTED_CONFIGURATION, MISSING_REQUIRED_ARGUMENTS_FOR_INIT, PLACEMENT_NOT_FOUND -> HeliumErrorCode.INVALID_CONFIG
-        else -> HeliumErrorCode.PARTNER_ERROR
+    private fun getHeliumError(exception: VungleException?) = when(exception?.exceptionCode) {
+        NO_SERVE, AD_FAILED_TO_DOWNLOAD, NO_AUTO_CACHED_PLACEMENT -> HeliumError.HE_LOAD_FAILURE_NO_FILL
+        SERVER_ERROR, SERVER_TEMPORARY_UNAVAILABLE, ASSET_DOWNLOAD_ERROR -> HeliumError.HE_AD_SERVER_ERROR
+        NETWORK_ERROR, NETWORK_UNREACHABLE -> HeliumError.HE_NO_CONNECTIVITY
+        VUNGLE_NOT_INTIALIZED -> HeliumError.HE_INITIALIZATION_FAILURE_UNKNOWN
+        MISSING_REQUIRED_ARGUMENTS_FOR_INIT -> HeliumError.HE_INITIALIZATION_FAILURE_INVALID_CREDENTIALS
+        PLACEMENT_NOT_FOUND -> HeliumError.HE_LOAD_FAILURE_INVALID_PARTNER_PLACEMENT
+        else -> HeliumError.HE_PARTNER_ERROR
     }
 }

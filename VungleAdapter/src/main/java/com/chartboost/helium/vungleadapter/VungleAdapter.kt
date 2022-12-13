@@ -125,11 +125,6 @@ class VungleAdapter : PartnerAdapter {
     private val listeners = mutableMapOf<String, PartnerAdListener>()
 
     /**
-     * Indicate whether GDPR currently applies to the user.
-     */
-    private var gdprApplies = false
-
-    /**
      * Track the Vungle ad markup for fullscreen ad load --> ad show cycle, keyed by the Vungle placement ID.
      */
     private var adms: MutableMap<String, String?> = mutableMapOf()
@@ -200,7 +195,15 @@ class VungleAdapter : PartnerAdapter {
 
                         override fun onError(exception: VungleException) {
                             PartnerLogController.log(SETUP_FAILED, "Error: $exception")
-                            continuation.resume(Result.failure(HeliumAdException(getHeliumError(exception))))
+                            continuation.resume(
+                                Result.failure(
+                                    HeliumAdException(
+                                        getHeliumError(
+                                            exception
+                                        )
+                                    )
+                                )
+                            )
                         }
 
                         override fun onAutoCacheAdAvailable(placementId: String) {}
@@ -241,23 +244,25 @@ class VungleAdapter : PartnerAdapter {
     }
 
     /**
-     * Save the current GDPR applicability state for later use.
+     * Notify the Vungle SDK of the GDPR applicability and consent status.
      *
      * @param context The current [Context].
-     * @param gdprApplies True if GDPR applies, false otherwise.
+     * @param applies True if GDPR applies, false otherwise.
+     * @param gdprConsentStatus The user's GDPR consent status.
      */
-    override fun setGdprApplies(context: Context, gdprApplies: Boolean) {
-        PartnerLogController.log(if (gdprApplies) GDPR_APPLICABLE else GDPR_NOT_APPLICABLE)
-        this.gdprApplies = gdprApplies
-    }
+    override fun setGdpr(
+        context: Context,
+        applies: Boolean?,
+        gdprConsentStatus: GdprConsentStatus
+    ) {
+        PartnerLogController.log(
+            when (applies) {
+                true -> GDPR_APPLICABLE
+                false -> GDPR_NOT_APPLICABLE
+                else -> GDPR_UNKNOWN
+            }
+        )
 
-    /**
-     * Notify Vungle of the user's GDPR consent status, if applicable.
-     *
-     * @param context The current [Context].
-     * @param gdprConsentStatus The user's current GDPR consent status.
-     */
-    override fun setGdprConsentStatus(context: Context, gdprConsentStatus: GdprConsentStatus) {
         PartnerLogController.log(
             when (gdprConsentStatus) {
                 GdprConsentStatus.GDPR_CONSENT_UNKNOWN -> GDPR_CONSENT_UNKNOWN
@@ -266,7 +271,7 @@ class VungleAdapter : PartnerAdapter {
             }
         )
 
-        if (gdprApplies) {
+        if (applies == true) {
             val consent: Consent =
                 if (gdprConsentStatus == GdprConsentStatus.GDPR_CONSENT_GRANTED) {
                     Consent.OPTED_IN
@@ -519,7 +524,15 @@ class VungleAdapter : PartnerAdapter {
                             "Placement: $placementId. Error code: ${exception.exceptionCode}. " +
                                     "Message: ${exception.message}"
                         )
-                        continuation.resume(Result.failure(HeliumAdException(getHeliumError(exception))))
+                        continuation.resume(
+                            Result.failure(
+                                HeliumAdException(
+                                    getHeliumError(
+                                        exception
+                                    )
+                                )
+                            )
+                        )
                     }
                 }
             )
@@ -584,7 +597,15 @@ class VungleAdapter : PartnerAdapter {
                             "Placement: $placementId. Error code: ${exception?.exceptionCode}. " +
                                     "Message: ${exception?.message}"
                         )
-                        continuation.resume(Result.failure(HeliumAdException(getHeliumError(exception))))
+                        continuation.resume(
+                            Result.failure(
+                                HeliumAdException(
+                                    getHeliumError(
+                                        exception
+                                    )
+                                )
+                            )
+                        )
                     }
                 }
             )
@@ -666,7 +687,15 @@ class VungleAdapter : PartnerAdapter {
                                         "Message: ${exception.message}"
                             )
 
-                            continuation.resume(Result.failure(HeliumAdException(getHeliumError(exception))))
+                            continuation.resume(
+                                Result.failure(
+                                    HeliumAdException(
+                                        getHeliumError(
+                                            exception
+                                        )
+                                    )
+                                )
+                            )
                         }
 
                         override fun onAdViewed(id: String) {
@@ -714,7 +743,7 @@ class VungleAdapter : PartnerAdapter {
      *
      * @return The corresponding [HeliumError].
      */
-    private fun getHeliumError(exception: VungleException?) = when(exception?.exceptionCode) {
+    private fun getHeliumError(exception: VungleException?) = when (exception?.exceptionCode) {
         NO_SERVE, AD_FAILED_TO_DOWNLOAD, NO_AUTO_CACHED_PLACEMENT -> HeliumError.HE_LOAD_FAILURE_NO_FILL
         SERVER_ERROR, SERVER_TEMPORARY_UNAVAILABLE, ASSET_DOWNLOAD_ERROR -> HeliumError.HE_AD_SERVER_ERROR
         NETWORK_ERROR, NETWORK_UNREACHABLE -> HeliumError.HE_NO_CONNECTIVITY

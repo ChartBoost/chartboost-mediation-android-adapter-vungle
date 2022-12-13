@@ -667,7 +667,7 @@ class VungleAdapter : PartnerAdapter {
 
                         override fun onAdRewarded(id: String) {
                             PartnerLogController.log(DID_REWARD)
-                            listener?.onPartnerAdRewarded(partnerAd, Reward(0, ""))
+                            listener?.onPartnerAdRewarded(partnerAd)
                                 ?: PartnerLogController.log(
                                     CUSTOM,
                                     "Unable to fire onAdRewarded for Vungle adapter. Listener is null."

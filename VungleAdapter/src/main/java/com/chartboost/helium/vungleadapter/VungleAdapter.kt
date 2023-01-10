@@ -467,7 +467,7 @@ class VungleAdapter : PartnerAdapter {
                                     // Ignored.
                                 }
 
-                                @Deprecated("Deprecated in Java")
+                                @Deprecated("Deprecated by Vungle. Use onAdEnd(String) instead.")
                                 override fun onAdEnd(
                                     id: String,
                                     completed: Boolean,
@@ -648,7 +648,7 @@ class VungleAdapter : PartnerAdapter {
                             continuation.resume(Result.success(partnerAd))
                         }
 
-                        @Deprecated("Deprecated in Java")
+                        @Deprecated("Deprecated by Vungle. Use onAdEnd(String) instead.")
                         override fun onAdEnd(
                             id: String,
                             completed: Boolean,

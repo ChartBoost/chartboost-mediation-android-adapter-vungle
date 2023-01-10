@@ -315,8 +315,11 @@ class VungleAdapter : PartnerAdapter {
         request: PreBidRequest
     ): Map<String, String> {
         PartnerLogController.log(BIDDER_INFO_FETCH_STARTED)
-        PartnerLogController.log(BIDDER_INFO_FETCH_SUCCEEDED)
-        return mapOf("bid_token" to Vungle.getAvailableBidTokens(context))
+
+        val token = Vungle.getAvailableBidTokens(context) ?: ""
+
+        PartnerLogController.log(if (token.isNotEmpty()) BIDDER_INFO_FETCH_SUCCEEDED else BIDDER_INFO_FETCH_FAILED)
+        return mapOf("bid_token" to token)
     }
 
     /**
@@ -464,12 +467,12 @@ class VungleAdapter : PartnerAdapter {
                                     // Ignored.
                                 }
 
+                                @Deprecated("Deprecated by Vungle. Use onAdEnd(String) instead.")
                                 override fun onAdEnd(
                                     id: String,
                                     completed: Boolean,
                                     isCTAClicked: Boolean
                                 ) {
-                                    // Ignored. Deprecated.
                                 }
 
                                 override fun onAdEnd(id: String) {
@@ -645,12 +648,12 @@ class VungleAdapter : PartnerAdapter {
                             continuation.resume(Result.success(partnerAd))
                         }
 
+                        @Deprecated("Deprecated by Vungle. Use onAdEnd(String) instead.")
                         override fun onAdEnd(
                             id: String,
                             completed: Boolean,
                             isCTAClicked: Boolean
                         ) {
-                            // Ignored. Deprecated.
                         }
 
                         override fun onAdEnd(id: String) {

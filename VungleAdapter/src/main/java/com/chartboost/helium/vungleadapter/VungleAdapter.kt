@@ -428,6 +428,9 @@ class VungleAdapter : PartnerAdapter {
         bannerAdConfig.adSize = getVungleBannerSize(request.size)
         bannerAdConfig.setMuted(mute)
 
+        // Vungle needs a nullable adm instead of an empty string for non-programmatic ads.
+        val adm = if (request.adm?.isEmpty() == true) null else request.adm
+
         if (showingBanners.contains(request.partnerPlacement)) {
             PartnerLogController.log(
                 LOAD_FAILED,
@@ -439,13 +442,13 @@ class VungleAdapter : PartnerAdapter {
         return suspendCoroutine { continuation ->
             Banners.loadBanner(
                 request.partnerPlacement,
-                request.adm,
+                adm,
                 bannerAdConfig,
                 object : LoadAdCallback {
                     override fun onAdLoad(placementId: String) {
                         if (!Banners.canPlayAd(
                                 placementId,
-                                request.adm,
+                                adm,
                                 bannerAdConfig.adSize
                             )
                         ) {
@@ -456,7 +459,7 @@ class VungleAdapter : PartnerAdapter {
 
                         val ad = Banners.getBanner(
                             placementId,
-                            request.adm,
+                            adm,
                             bannerAdConfig,
                             object : PlayAdCallback {
                                 override fun creativeId(creativeId: String) {
@@ -577,7 +580,10 @@ class VungleAdapter : PartnerAdapter {
     ): Result<PartnerAd> {
         // Save the listener for later use.
         listeners[request.heliumPlacement] = listener
-        adms[request.partnerPlacement] = request.adm
+
+        // Vungle needs a nullable adm instead of an empty string for non-programmatic ads.
+        val adm = if (request.adm?.isEmpty() == true) null else request.adm
+        adms[request.partnerPlacement] = adm
 
         val adConfig = AdConfig()
         adConfig.setMuted(mute)
@@ -589,7 +595,7 @@ class VungleAdapter : PartnerAdapter {
         return suspendCoroutine { continuation ->
             Vungle.loadAd(
                 request.partnerPlacement,
-                request.adm,
+                adm,
                 adConfig,
                 object : LoadAdCallback {
                     override fun onAdLoad(id: String) {

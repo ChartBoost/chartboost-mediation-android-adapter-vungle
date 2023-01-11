@@ -664,8 +664,7 @@ class VungleAdapter : PartnerAdapter {
 
                         override fun onAdEnd(id: String) {
                             PartnerLogController.log(DID_DISMISS)
-                            listener?.onPartnerAdDismissed(partnerAd,
-                                null)
+                            listener?.onPartnerAdDismissed(partnerAd, null)
                                 ?: PartnerLogController.log(
                                     CUSTOM,
                                     "Unable to fire onAdEnd for Vungle adapter. Listener is null."

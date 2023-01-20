@@ -9,6 +9,9 @@ import com.vungle.warren.*
 import com.vungle.warren.Vungle.Consent
 import com.vungle.warren.error.VungleException
 import com.vungle.warren.error.VungleException.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -180,7 +183,11 @@ class VungleAdapter : PartnerAdapter {
         PartnerLogController.log(SETUP_STARTED)
 
         return suspendCoroutine { continuation ->
-            partnerConfiguration.credentials.optString(APP_ID_KEY).trim().takeIf { it.isNotEmpty() }
+            Json.decodeFromJsonElement<String>(
+                (partnerConfiguration.credentials as JsonObject).getValue(APP_ID_KEY)
+            )
+                .trim()
+                .takeIf { it.isNotEmpty() }
                 ?.let { appId ->
                     Vungle.init(appId, context.applicationContext, object : InitCallback {
                         override fun onSuccess() {

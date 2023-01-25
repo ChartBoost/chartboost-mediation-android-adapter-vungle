@@ -1,19 +1,19 @@
 # Chartboost Mediation Vungle Adapter
 
-The Chartboost Mediation Vungle adapter mediates the Vungle SDK into the Chartboost Mediation SDK.
+The Chartboost Mediation Vungle adapter mediates Vungle via the Chartboost Mediation SDK.
 
 ## Minimum Requirements
 
-| Plugin | Version |
-| ------ | ------ |
-| Chartboost Mediation SDK | 4.0.0+ |
-| Android API | 21+ |
+| Plugin                   | Version |
+| ------------------------ | ------- |
+| Chartboost Mediation SDK | 4.0.0+  |
+| Android API              | 21+     |
 
 ## Integration
 
 In your `build.gradle`, add the following entry:
 ```
-    implementation "com.chartboost:mediation-adapter-vungle:4.6.12.0.0"
+    implementation "com.chartboost:chartboost-mediation-adapter-vungle:4.6.12.0.0"
 ```
 
 ## Contributions

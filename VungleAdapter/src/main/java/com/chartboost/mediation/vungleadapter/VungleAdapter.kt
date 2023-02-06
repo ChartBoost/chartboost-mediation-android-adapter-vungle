@@ -5,7 +5,7 @@
  * license that can be found in the LICENSE file.
  */
 
-package com.chartboost.helium.vungleadapter
+package com.chartboost.mediation.vungleadapter
 
 import android.content.Context
 import android.util.Size
@@ -23,7 +23,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 /**
- *  The Helium Vungle Adapter.
+ *  The Chartboost Mediation Vungle Adapter.
  */
 class VungleAdapter : PartnerAdapter {
     companion object {
@@ -130,7 +130,7 @@ class VungleAdapter : PartnerAdapter {
     }
 
     /**
-     * A map of Helium's listeners for the corresponding Helium placements.
+     * A map of Chartboost Mediation's listeners for the corresponding Chartboost placements.
      */
     private val listeners = mutableMapOf<String, PartnerAdListener>()
 
@@ -166,16 +166,16 @@ class VungleAdapter : PartnerAdapter {
      * Get the Vungle adapter version.
      *
      * You may version the adapter using any preferred convention, but it is recommended to apply the
-     * following format if the adapter will be published by Helium:
+     * following format if the adapter will be published by Chartboost Mediation:
      *
-     * Helium.Partner.Adapter
+     * Chartboost Mediation.Partner.Adapter
      *
-     * "Helium" represents the Helium SDK’s major version that is compatible with this adapter. This must be 1 digit.
+     * "Chartboost Mediation" represents the Chartboost Mediation SDK’s major version that is compatible with this adapter. This must be 1 digit.
      * "Partner" represents the partner SDK’s major.minor.patch.x (where x is optional) version that is compatible with this adapter. This can be 3-4 digits.
      * "Adapter" represents this adapter’s version (starting with 0), which resets to 0 when the partner SDK’s version changes. This must be 1 digit.
      */
     override val adapterVersion: String
-        get() = BuildConfig.HELIUM_VUNGLE_ADAPTER_VERSION
+        get() = BuildConfig.CHARTBOOST_MEDIATION_VUNGLE_ADAPTER_VERSION
 
     /**
      * Initialize the Vungle SDK so that it is ready to request ads.
@@ -216,8 +216,8 @@ class VungleAdapter : PartnerAdapter {
                             PartnerLogController.log(SETUP_FAILED, "Error: $exception")
                             continuation.resume(
                                 Result.failure(
-                                    HeliumAdException(
-                                        getHeliumError(
+                                    ChartboostMediationAdException(
+                                        getChartboostMediationError(
                                             exception
                                         )
                                     )
@@ -231,7 +231,7 @@ class VungleAdapter : PartnerAdapter {
                     }.build())
                 } ?: run {
                 PartnerLogController.log(SETUP_FAILED, "Missing App ID.")
-                continuation.resume(Result.failure(HeliumAdException(HeliumError.HE_INITIALIZATION_FAILURE_INVALID_CREDENTIALS)))
+                continuation.resume(Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS)))
             }
         }
     }
@@ -341,7 +341,7 @@ class VungleAdapter : PartnerAdapter {
      *
      * @param context The current [Context].
      * @param request An [PartnerAdLoadRequest] instance containing relevant data for the current ad load call.
-     * @param partnerAdListener A [PartnerAdListener] to notify Helium of ad events.
+     * @param partnerAdListener A [PartnerAdListener] to notify Chartboost Mediation of ad events.
      *
      * @return Result.success(PartnerAd) if the ad was successfully loaded, Result.failure(Exception) otherwise.
      */
@@ -373,7 +373,7 @@ class VungleAdapter : PartnerAdapter {
     override suspend fun show(context: Context, partnerAd: PartnerAd): Result<PartnerAd> {
         PartnerLogController.log(SHOW_STARTED)
 
-        val listener = listeners.remove(partnerAd.request.heliumPlacement)
+        val listener = listeners.remove(partnerAd.request.chartboostPlacement)
 
         return when (partnerAd.request.format) {
             // Banner ads do not have a separate "show" mechanism.
@@ -395,7 +395,7 @@ class VungleAdapter : PartnerAdapter {
     override suspend fun invalidate(partnerAd: PartnerAd): Result<PartnerAd> {
         PartnerLogController.log(INVALIDATE_STARTED)
 
-        listeners.remove(partnerAd.request.heliumPlacement)
+        listeners.remove(partnerAd.request.chartboostPlacement)
         adms.remove(partnerAd.request.partnerPlacement)
 
         return when (partnerAd.request.format) {
@@ -432,7 +432,7 @@ class VungleAdapter : PartnerAdapter {
      * Attempt to load a Vungle banner ad.
      *
      * @param request An [PartnerAdLoadRequest] instance containing relevant data for the current ad load call.
-     * @param listener A [PartnerAdListener] to notify Helium of ad events.
+     * @param listener A [PartnerAdListener] to notify Chartboost Mediation of ad events.
      */
     private suspend fun loadBannerAd(
         request: PartnerAdLoadRequest,
@@ -448,9 +448,9 @@ class VungleAdapter : PartnerAdapter {
         if (showingBanners.contains(request.partnerPlacement)) {
             PartnerLogController.log(
                 LOAD_FAILED,
-                "Vungle is already showing a banner. Failing the banner load for ${request.heliumPlacement}"
+                "Vungle is already showing a banner. Failing the banner load for ${request.chartboostPlacement}"
             )
-            return Result.failure(HeliumAdException(HeliumError.HE_LOAD_FAILURE_SHOW_IN_PROGRESS))
+            return Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_SHOW_IN_PROGRESS))
         }
 
         return suspendCoroutine { continuation ->
@@ -467,7 +467,7 @@ class VungleAdapter : PartnerAdapter {
                             )
                         ) {
                             PartnerLogController.log(LOAD_FAILED, "Placement: $placementId.")
-                            continuation.resume(Result.failure(HeliumAdException(HeliumError.HE_LOAD_FAILURE_MISMATCHED_AD_PARAMS)))
+                            continuation.resume(Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_MISMATCHED_AD_PARAMS)))
                             return
                         }
 
@@ -539,7 +539,7 @@ class VungleAdapter : PartnerAdapter {
                             )
                         } ?: run {
                             PartnerLogController.log(LOAD_FAILED, "Placement: $placementId.")
-                            continuation.resume(Result.failure(HeliumAdException(HeliumError.HE_LOAD_FAILURE_UNKNOWN)))
+                            continuation.resume(Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_UNKNOWN)))
                         }
                     }
 
@@ -551,8 +551,8 @@ class VungleAdapter : PartnerAdapter {
                         )
                         continuation.resume(
                             Result.failure(
-                                HeliumAdException(
-                                    getHeliumError(
+                                ChartboostMediationAdException(
+                                    getChartboostMediationError(
                                         exception
                                     )
                                 )
@@ -565,9 +565,9 @@ class VungleAdapter : PartnerAdapter {
     }
 
     /**
-     * Convert a Helium banner size into the corresponding Vungle banner size.
+     * Convert a Chartboost Mediation banner size into the corresponding Vungle banner size.
      *
-     * @param size The Helium banner size.
+     * @param size The Chartboost Mediation banner size.
      *
      * @return The Vungle banner size.
      */
@@ -586,14 +586,14 @@ class VungleAdapter : PartnerAdapter {
      * Attempt to load a Vungle fullscreen ad. This method supports both interstitial and rewarded ads.
      *
      * @param request An [PartnerAdLoadRequest] instance containing relevant data for the current ad load call.
-     * @param listener A [PartnerAdListener] to notify Helium of ad events.
+     * @param listener A [PartnerAdListener] to notify Chartboost Mediation of ad events.
      */
     private suspend fun loadFullscreenAd(
         request: PartnerAdLoadRequest,
         listener: PartnerAdListener
     ): Result<PartnerAd> {
         // Save the listener for later use.
-        listeners[request.heliumPlacement] = listener
+        listeners[request.chartboostPlacement] = listener
 
         // Vungle needs a nullable adm instead of an empty string for non-programmatic ads.
         val adm = if (request.adm?.isEmpty() == true) null else request.adm
@@ -627,8 +627,8 @@ class VungleAdapter : PartnerAdapter {
                         )
                         continuation.resume(
                             Result.failure(
-                                HeliumAdException(
-                                    getHeliumError(
+                                ChartboostMediationAdException(
+                                    getChartboostMediationError(
                                         exception
                                     )
                                 )
@@ -644,7 +644,7 @@ class VungleAdapter : PartnerAdapter {
      * Attempt to show a Vungle fullscreen ad.
      *
      * @param partnerAd The [PartnerAd] object containing the Vungle ad to be shown.
-     * @param listener A [PartnerAdListener] to notify Helium of ad events.
+     * @param listener A [PartnerAdListener] to notify Chartboost Mediation of ad events.
      */
     private suspend fun showFullscreenAd(
         partnerAd: PartnerAd,
@@ -717,8 +717,8 @@ class VungleAdapter : PartnerAdapter {
 
                             continuation.resume(
                                 Result.failure(
-                                    HeliumAdException(
-                                        getHeliumError(
+                                    ChartboostMediationAdException(
+                                        getChartboostMediationError(
                                             exception
                                         )
                                     )
@@ -740,7 +740,7 @@ class VungleAdapter : PartnerAdapter {
                     "Vungle failed to show the fullscreen ad for placement " +
                             "${partnerAd.request.partnerPlacement}."
                 )
-                continuation.resume(Result.failure(HeliumAdException(HeliumError.HE_SHOW_FAILURE_UNKNOWN)))
+                continuation.resume(Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_SHOW_FAILURE_UNKNOWN)))
             }
         }
     }
@@ -760,24 +760,24 @@ class VungleAdapter : PartnerAdapter {
             Result.success(partnerAd)
         } ?: run {
             PartnerLogController.log(INVALIDATE_FAILED, "Ad is null.")
-            Result.failure(HeliumAdException(HeliumError.HE_INVALIDATE_FAILURE_AD_NOT_FOUND))
+            Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_INVALIDATE_FAILURE_AD_NOT_FOUND))
         }
     }
 
     /**
-     * Convert a given Vungle exception into a [HeliumError].
+     * Convert a given Vungle exception into a [ChartboostMediationError].
      *
      * @param exception The Vungle exception to convert.
      *
-     * @return The corresponding [HeliumError].
+     * @return The corresponding [ChartboostMediationError].
      */
-    private fun getHeliumError(exception: VungleException?) = when (exception?.exceptionCode) {
-        NO_SERVE, AD_FAILED_TO_DOWNLOAD, NO_AUTO_CACHED_PLACEMENT -> HeliumError.HE_LOAD_FAILURE_NO_FILL
-        SERVER_ERROR, SERVER_TEMPORARY_UNAVAILABLE, ASSET_DOWNLOAD_ERROR -> HeliumError.HE_AD_SERVER_ERROR
-        NETWORK_ERROR, NETWORK_UNREACHABLE -> HeliumError.HE_NO_CONNECTIVITY
-        VUNGLE_NOT_INTIALIZED -> HeliumError.HE_INITIALIZATION_FAILURE_UNKNOWN
-        MISSING_REQUIRED_ARGUMENTS_FOR_INIT -> HeliumError.HE_INITIALIZATION_FAILURE_INVALID_CREDENTIALS
-        PLACEMENT_NOT_FOUND -> HeliumError.HE_LOAD_FAILURE_INVALID_PARTNER_PLACEMENT
-        else -> HeliumError.HE_PARTNER_ERROR
+    private fun getChartboostMediationError(exception: VungleException?) = when (exception?.exceptionCode) {
+        NO_SERVE, AD_FAILED_TO_DOWNLOAD, NO_AUTO_CACHED_PLACEMENT -> ChartboostMediationError.CM_LOAD_FAILURE_NO_FILL
+        SERVER_ERROR, SERVER_TEMPORARY_UNAVAILABLE, ASSET_DOWNLOAD_ERROR -> ChartboostMediationError.CM_AD_SERVER_ERROR
+        NETWORK_ERROR, NETWORK_UNREACHABLE -> ChartboostMediationError.CM_NO_CONNECTIVITY
+        VUNGLE_NOT_INTIALIZED -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_UNKNOWN
+        MISSING_REQUIRED_ARGUMENTS_FOR_INIT -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS
+        PLACEMENT_NOT_FOUND -> ChartboostMediationError.CM_LOAD_FAILURE_INVALID_PARTNER_PLACEMENT
+        else -> ChartboostMediationError.CM_PARTNER_ERROR
     }
 }

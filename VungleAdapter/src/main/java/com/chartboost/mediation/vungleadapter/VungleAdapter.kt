@@ -359,6 +359,10 @@ class VungleAdapter : PartnerAdapter {
             AdFormat.INTERSTITIAL, AdFormat.REWARDED -> {
                 loadFullscreenAd(request, partnerAdListener)
             }
+            AdFormat.REWARDED_INTERSTITIAL -> {
+                PartnerLogController.log(LOAD_FAILED)
+                Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT))
+            }
         }
     }
 
@@ -382,6 +386,10 @@ class VungleAdapter : PartnerAdapter {
                 Result.success(partnerAd)
             }
             AdFormat.INTERSTITIAL, AdFormat.REWARDED -> showFullscreenAd(partnerAd, listener)
+            AdFormat.REWARDED_INTERSTITIAL -> {
+                PartnerLogController.log(LOAD_FAILED)
+                Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT))
+            }
         }
     }
 
@@ -408,6 +416,10 @@ class VungleAdapter : PartnerAdapter {
             AdFormat.INTERSTITIAL, AdFormat.REWARDED -> {
                 PartnerLogController.log(INVALIDATE_SUCCEEDED)
                 Result.success(partnerAd)
+            }
+            AdFormat.REWARDED_INTERSTITIAL -> {
+                PartnerLogController.log(LOAD_FAILED)
+                Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT))
             }
         }
     }

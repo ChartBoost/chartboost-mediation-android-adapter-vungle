@@ -35,7 +35,7 @@ android {
         minSdk = 21
         targetSdk = 33
         // If you touch the following line, don't forget to update scripts/get_rc_version.zsh
-        android.defaultConfig.versionName = System.getenv("VERSION_OVERRIDE") ?: "4.6.12.0.0"
+        android.defaultConfig.versionName = System.getenv("VERSION_OVERRIDE") ?: "4.6.12.1.0"
         buildConfigField("String", "CHARTBOOST_MEDIATION_VUNGLE_ADAPTER_VERSION", "\"${android.defaultConfig.versionName}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -70,7 +70,7 @@ dependencies {
     "remoteImplementation"("com.chartboost:chartboost-mediation-sdk:4.+")
 
     // Partner SDK
-    implementation("com.vungle:publisher-sdk-android:6.12.0")
+    implementation("com.vungle:publisher-sdk-android:6.12.1")
 
     // Adapter Dependencies
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")

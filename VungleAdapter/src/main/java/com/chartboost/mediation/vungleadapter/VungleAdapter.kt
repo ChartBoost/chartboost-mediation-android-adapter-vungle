@@ -356,12 +356,8 @@ class VungleAdapter : PartnerAdapter {
             AdFormat.BANNER -> {
                 loadBannerAd(request, partnerAdListener)
             }
-            AdFormat.INTERSTITIAL, AdFormat.REWARDED -> {
+            AdFormat.INTERSTITIAL, AdFormat.REWARDED, AdFormat.REWARDED_INTERSTITIAL -> {
                 loadFullscreenAd(request, partnerAdListener)
-            }
-            AdFormat.REWARDED_INTERSTITIAL -> {
-                PartnerLogController.log(LOAD_FAILED)
-                Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT))
             }
         }
     }
@@ -385,11 +381,7 @@ class VungleAdapter : PartnerAdapter {
                 PartnerLogController.log(SHOW_SUCCEEDED)
                 Result.success(partnerAd)
             }
-            AdFormat.INTERSTITIAL, AdFormat.REWARDED -> showFullscreenAd(partnerAd, listener)
-            AdFormat.REWARDED_INTERSTITIAL -> {
-                PartnerLogController.log(LOAD_FAILED)
-                Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT))
-            }
+            AdFormat.INTERSTITIAL, AdFormat.REWARDED, AdFormat.REWARDED_INTERSTITIAL -> showFullscreenAd(partnerAd, listener)
         }
     }
 
@@ -413,13 +405,9 @@ class VungleAdapter : PartnerAdapter {
              * have an ad in PartnerAd to invalidate.
              */
             AdFormat.BANNER -> destroyBannerAd(partnerAd)
-            AdFormat.INTERSTITIAL, AdFormat.REWARDED -> {
+            AdFormat.INTERSTITIAL, AdFormat.REWARDED, AdFormat.REWARDED_INTERSTITIAL -> {
                 PartnerLogController.log(INVALIDATE_SUCCEEDED)
                 Result.success(partnerAd)
-            }
-            AdFormat.REWARDED_INTERSTITIAL -> {
-                PartnerLogController.log(LOAD_FAILED)
-                Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT))
             }
         }
     }
@@ -595,7 +583,7 @@ class VungleAdapter : PartnerAdapter {
     }
 
     /**
-     * Attempt to load a Vungle fullscreen ad. This method supports both interstitial and rewarded ads.
+     * Attempt to load a Vungle fullscreen ad. This method supports both all fullscreen ads.
      *
      * @param request An [PartnerAdLoadRequest] instance containing relevant data for the current ad load call.
      * @param listener A [PartnerAdListener] to notify Chartboost Mediation of ad events.

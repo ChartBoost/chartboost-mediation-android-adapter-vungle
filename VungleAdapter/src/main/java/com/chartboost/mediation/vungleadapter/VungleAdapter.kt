@@ -130,7 +130,7 @@ class VungleAdapter : PartnerAdapter {
     }
 
     /**
-     * A map of Chartboost Mediation's listeners for the corresponding Chartboost placements.
+     * A map of Chartboost Mediation's listeners for the corresponding load identifier.
      */
     private val listeners = mutableMapOf<String, PartnerAdListener>()
 
@@ -359,6 +359,10 @@ class VungleAdapter : PartnerAdapter {
             AdFormat.INTERSTITIAL, AdFormat.REWARDED -> {
                 loadFullscreenAd(request, partnerAdListener)
             }
+            else -> {
+                PartnerLogController.log(LOAD_FAILED)
+                Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT))
+            }
         }
     }
 
@@ -373,7 +377,7 @@ class VungleAdapter : PartnerAdapter {
     override suspend fun show(context: Context, partnerAd: PartnerAd): Result<PartnerAd> {
         PartnerLogController.log(SHOW_STARTED)
 
-        val listener = listeners.remove(partnerAd.request.chartboostPlacement)
+        val listener = listeners.remove(partnerAd.request.identifier)
 
         return when (partnerAd.request.format) {
             // Banner ads do not have a separate "show" mechanism.
@@ -382,6 +386,10 @@ class VungleAdapter : PartnerAdapter {
                 Result.success(partnerAd)
             }
             AdFormat.INTERSTITIAL, AdFormat.REWARDED -> showFullscreenAd(partnerAd, listener)
+            else -> {
+                PartnerLogController.log(SHOW_FAILED)
+                Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_SHOW_FAILURE_UNSUPPORTED_AD_FORMAT))
+            }
         }
     }
 
@@ -395,7 +403,7 @@ class VungleAdapter : PartnerAdapter {
     override suspend fun invalidate(partnerAd: PartnerAd): Result<PartnerAd> {
         PartnerLogController.log(INVALIDATE_STARTED)
 
-        listeners.remove(partnerAd.request.chartboostPlacement)
+        listeners.remove(partnerAd.request.identifier)
         adms.remove(partnerAd.request.partnerPlacement)
 
         return when (partnerAd.request.format) {
@@ -405,7 +413,7 @@ class VungleAdapter : PartnerAdapter {
              * have an ad in PartnerAd to invalidate.
              */
             AdFormat.BANNER -> destroyBannerAd(partnerAd)
-            AdFormat.INTERSTITIAL, AdFormat.REWARDED -> {
+            else -> {
                 PartnerLogController.log(INVALIDATE_SUCCEEDED)
                 Result.success(partnerAd)
             }
@@ -593,7 +601,7 @@ class VungleAdapter : PartnerAdapter {
         listener: PartnerAdListener
     ): Result<PartnerAd> {
         // Save the listener for later use.
-        listeners[request.chartboostPlacement] = listener
+        listeners[request.identifier] = listener
 
         // Vungle needs a nullable adm instead of an empty string for non-programmatic ads.
         val adm = if (request.adm?.isEmpty() == true) null else request.adm

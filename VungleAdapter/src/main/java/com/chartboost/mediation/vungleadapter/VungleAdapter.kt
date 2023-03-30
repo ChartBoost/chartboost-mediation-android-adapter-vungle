@@ -430,18 +430,9 @@ class VungleAdapter : PartnerAdapter {
              * have an ad in PartnerAd to invalidate.
              */
             AdFormat.BANNER -> destroyBannerAd(partnerAd)
-            AdFormat.INTERSTITIAL, AdFormat.REWARDED -> {
+            else -> {
                 PartnerLogController.log(INVALIDATE_SUCCEEDED)
                 Result.success(partnerAd)
-            }
-            else -> {
-                if (partnerAd.request.format.key == "rewarded_interstitial") {
-                    PartnerLogController.log(INVALIDATE_SUCCEEDED)
-                    Result.success(partnerAd)
-                } else {
-                    PartnerLogController.log(INVALIDATE_FAILED)
-                    Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_INVALIDATE_UNSUPPORTED_AD_FORMAT))
-                }
             }
         }
     }

@@ -16,6 +16,7 @@ import com.vungle.warren.*
 import com.vungle.warren.Vungle.Consent
 import com.vungle.warren.error.VungleException
 import com.vungle.warren.error.VungleException.*
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -189,7 +190,13 @@ class VungleAdapter : PartnerAdapter {
     ): Result<Unit> {
         PartnerLogController.log(SETUP_STARTED)
 
-        return suspendCoroutine { continuation ->
+        return suspendCancellableCoroutine { continuation ->
+            fun resumeOnce(result: Result<Unit>) {
+                if (continuation.isActive) {
+                    continuation.resume(result)
+                }
+            }
+
             Json.decodeFromJsonElement<String>(
                 (partnerConfiguration.credentials as JsonObject).getValue(APP_ID_KEY)
             )
@@ -203,7 +210,7 @@ class VungleAdapter : PartnerAdapter {
                                 adapterVersion
                             )
 
-                            continuation.resume(
+                            resumeOnce(
                                 Result.success(
                                     PartnerLogController.log(
                                         SETUP_SUCCEEDED
@@ -214,7 +221,8 @@ class VungleAdapter : PartnerAdapter {
 
                         override fun onError(exception: VungleException) {
                             PartnerLogController.log(SETUP_FAILED, "Error: $exception")
-                            continuation.resume(
+
+                            resumeOnce(
                                 Result.failure(
                                     ChartboostMediationAdException(
                                         getChartboostMediationError(
@@ -231,7 +239,7 @@ class VungleAdapter : PartnerAdapter {
                     }.build())
                 } ?: run {
                 PartnerLogController.log(SETUP_FAILED, "Missing App ID.")
-                continuation.resume(
+                resumeOnce(
                     Result.failure(
                         ChartboostMediationAdException(
                             ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS

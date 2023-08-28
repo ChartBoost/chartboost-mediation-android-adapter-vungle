@@ -21,7 +21,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 /**
  *  The Chartboost Mediation Vungle Adapter.
@@ -486,7 +485,13 @@ class VungleAdapter : PartnerAdapter {
             return Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_SHOW_IN_PROGRESS))
         }
 
-        return suspendCoroutine { continuation ->
+        return suspendCancellableCoroutine { continuation ->
+            fun resumeOnce(result: Result<PartnerAd>) {
+                if (continuation.isActive) {
+                    continuation.resume(result)
+                }
+            }
+
             Banners.loadBanner(
                 request.partnerPlacement,
                 adm,
@@ -500,7 +505,8 @@ class VungleAdapter : PartnerAdapter {
                             )
                         ) {
                             PartnerLogController.log(LOAD_FAILED, "Placement: $placementId.")
-                            continuation.resume(
+
+                            resumeOnce(
                                 Result.failure(
                                     ChartboostMediationAdException(
                                         ChartboostMediationError.CM_LOAD_FAILURE_MISMATCHED_AD_PARAMS
@@ -573,12 +579,12 @@ class VungleAdapter : PartnerAdapter {
 
                         ad?.let {
                             PartnerLogController.log(LOAD_SUCCEEDED)
-                            continuation.resume(
+                            resumeOnce(
                                 Result.success(createPartnerAd(it, request))
                             )
                         } ?: run {
                             PartnerLogController.log(LOAD_FAILED, "Placement: $placementId.")
-                            continuation.resume(
+                            resumeOnce(
                                 Result.failure(
                                     ChartboostMediationAdException(
                                         ChartboostMediationError.CM_LOAD_FAILURE_UNKNOWN
@@ -594,7 +600,7 @@ class VungleAdapter : PartnerAdapter {
                             "Placement: $placementId. Error code: ${exception.exceptionCode}. " +
                                     "Message: ${exception.message}"
                         )
-                        continuation.resume(
+                        resumeOnce(
                             Result.failure(
                                 ChartboostMediationAdException(
                                     getChartboostMediationError(
@@ -651,7 +657,13 @@ class VungleAdapter : PartnerAdapter {
         adConfig.setImmersiveMode(immersiveMode)
         adOrientation?.let { adConfig.adOrientation = it }
 
-        return suspendCoroutine { continuation ->
+        return suspendCancellableCoroutine { continuation ->
+            fun resumeOnce(result: Result<PartnerAd>) {
+                if (continuation.isActive) {
+                    continuation.resume(result)
+                }
+            }
+
             Vungle.loadAd(
                 request.partnerPlacement,
                 adm,
@@ -659,7 +671,7 @@ class VungleAdapter : PartnerAdapter {
                 object : LoadAdCallback {
                     override fun onAdLoad(id: String) {
                         PartnerLogController.log(LOAD_SUCCEEDED)
-                        continuation.resume(
+                        resumeOnce(
                             Result.success(createPartnerAd(null, request))
                         )
                     }
@@ -670,7 +682,7 @@ class VungleAdapter : PartnerAdapter {
                             "Placement: $placementId. Error code: ${exception?.exceptionCode}. " +
                                     "Message: ${exception?.message}"
                         )
-                        continuation.resume(
+                        resumeOnce(
                             Result.failure(
                                 ChartboostMediationAdException(
                                     getChartboostMediationError(
@@ -697,7 +709,13 @@ class VungleAdapter : PartnerAdapter {
     ): Result<PartnerAd> {
         val adm = adms.remove(partnerAd.request.partnerPlacement)
 
-        return suspendCoroutine { continuation ->
+        return suspendCancellableCoroutine { continuation ->
+            fun resumeOnce(result: Result<PartnerAd>) {
+                if (continuation.isActive) {
+                    continuation.resume(result)
+                }
+            }
+
             if (Vungle.canPlayAd(partnerAd.request.partnerPlacement, adm)) {
                 Vungle.playAd(
                     partnerAd.request.partnerPlacement,
@@ -710,7 +728,7 @@ class VungleAdapter : PartnerAdapter {
 
                         override fun onAdStart(id: String) {
                             PartnerLogController.log(SHOW_SUCCEEDED)
-                            continuation.resume(Result.success(partnerAd))
+                            resumeOnce(Result.success(partnerAd))
                         }
 
                         @Deprecated("Deprecated by Vungle. Use onAdEnd(String) instead.")
@@ -760,7 +778,7 @@ class VungleAdapter : PartnerAdapter {
                                         "Message: ${exception.message}"
                             )
 
-                            continuation.resume(
+                            resumeOnce(
                                 Result.failure(
                                     ChartboostMediationAdException(
                                         getChartboostMediationError(
@@ -785,7 +803,7 @@ class VungleAdapter : PartnerAdapter {
                     "Vungle failed to show the fullscreen ad for placement " +
                             "${partnerAd.request.partnerPlacement}."
                 )
-                continuation.resume(
+                resumeOnce(
                     Result.failure(
                         ChartboostMediationAdException(
                             ChartboostMediationError.CM_SHOW_FAILURE_UNKNOWN

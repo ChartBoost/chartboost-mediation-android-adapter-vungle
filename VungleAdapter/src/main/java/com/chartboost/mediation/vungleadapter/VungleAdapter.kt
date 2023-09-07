@@ -366,7 +366,7 @@ class VungleAdapter : PartnerAdapter {
         PartnerLogController.log(LOAD_STARTED)
 
         return when (request.format) {
-            AdFormat.BANNER -> {
+            AdFormat.BANNER, AdFormat.ADAPTIVE_BANNER -> {
                 loadBannerAd(request, partnerAdListener)
             }
             AdFormat.INTERSTITIAL, AdFormat.REWARDED -> {
@@ -398,7 +398,7 @@ class VungleAdapter : PartnerAdapter {
 
         return when (partnerAd.request.format) {
             // Banner ads do not have a separate "show" mechanism.
-            AdFormat.BANNER -> {
+            AdFormat.BANNER, AdFormat.ADAPTIVE_BANNER -> {
                 PartnerLogController.log(SHOW_SUCCEEDED)
                 Result.success(partnerAd)
             }
@@ -436,7 +436,7 @@ class VungleAdapter : PartnerAdapter {
              * For fullscreen ads, since Vungle does not provide an ad in the load callback, we don't
              * have an ad in PartnerAd to invalidate.
              */
-            AdFormat.BANNER -> destroyBannerAd(partnerAd)
+            AdFormat.BANNER, AdFormat.ADAPTIVE_BANNER -> destroyBannerAd(partnerAd)
             else -> {
                 PartnerLogController.log(INVALIDATE_SUCCEEDED)
                 Result.success(partnerAd)

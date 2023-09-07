@@ -365,11 +365,11 @@ class VungleAdapter : PartnerAdapter {
     ): Result<PartnerAd> {
         PartnerLogController.log(LOAD_STARTED)
 
-        return when (request.format) {
-            AdFormat.BANNER, AdFormat.ADAPTIVE_BANNER -> {
+        return when (request.format.key) {
+            AdFormat.BANNER.key, "adaptive_banner" -> {
                 loadBannerAd(request, partnerAdListener)
             }
-            AdFormat.INTERSTITIAL, AdFormat.REWARDED -> {
+            AdFormat.INTERSTITIAL.key, AdFormat.REWARDED.key -> {
                 loadFullscreenAd(request, partnerAdListener)
             }
             else -> {
@@ -396,13 +396,13 @@ class VungleAdapter : PartnerAdapter {
 
         val listener = listeners.remove(partnerAd.request.identifier)
 
-        return when (partnerAd.request.format) {
+        return when (partnerAd.request.format.key) {
             // Banner ads do not have a separate "show" mechanism.
-            AdFormat.BANNER, AdFormat.ADAPTIVE_BANNER -> {
+            AdFormat.BANNER.key, "adaptive_banner" -> {
                 PartnerLogController.log(SHOW_SUCCEEDED)
                 Result.success(partnerAd)
             }
-            AdFormat.INTERSTITIAL, AdFormat.REWARDED -> showFullscreenAd(
+            AdFormat.INTERSTITIAL.key, AdFormat.REWARDED.key -> showFullscreenAd(
                 partnerAd,
                 listener
             )
@@ -430,13 +430,13 @@ class VungleAdapter : PartnerAdapter {
         listeners.remove(partnerAd.request.identifier)
         adms.remove(partnerAd.request.partnerPlacement)
 
-        return when (partnerAd.request.format) {
+        return when (partnerAd.request.format.key) {
             /**
              * Only invalidate banner ads.
              * For fullscreen ads, since Vungle does not provide an ad in the load callback, we don't
              * have an ad in PartnerAd to invalidate.
              */
-            AdFormat.BANNER, AdFormat.ADAPTIVE_BANNER -> destroyBannerAd(partnerAd)
+            AdFormat.BANNER.key, "adaptive_banner" -> destroyBannerAd(partnerAd)
             else -> {
                 PartnerLogController.log(INVALIDATE_SUCCEEDED)
                 Result.success(partnerAd)

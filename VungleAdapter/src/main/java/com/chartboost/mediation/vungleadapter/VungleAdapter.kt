@@ -9,16 +9,7 @@ package com.chartboost.mediation.vungleadapter
 
 import android.content.Context
 import android.util.Size
-import com.chartboost.heliumsdk.domain.AdFormat
-import com.chartboost.heliumsdk.domain.ChartboostMediationAdException
-import com.chartboost.heliumsdk.domain.ChartboostMediationError
-import com.chartboost.heliumsdk.domain.GdprConsentStatus
-import com.chartboost.heliumsdk.domain.PartnerAd
-import com.chartboost.heliumsdk.domain.PartnerAdListener
-import com.chartboost.heliumsdk.domain.PartnerAdLoadRequest
-import com.chartboost.heliumsdk.domain.PartnerAdapter
-import com.chartboost.heliumsdk.domain.PartnerConfiguration
-import com.chartboost.heliumsdk.domain.PreBidRequest
+import com.chartboost.heliumsdk.domain.*
 import com.chartboost.heliumsdk.utils.PartnerLogController
 import com.chartboost.heliumsdk.utils.PartnerLogController.PartnerAdapterEvents.*
 import com.vungle.ads.AdConfig
@@ -104,12 +95,12 @@ class VungleAdapter : PartnerAdapter {
     /**
      * A lambda to call for successful Vungle ad shows.
      */
-    private var onShowSuccess: () -> Unit = {}
+    private var onPlaySuccess: () -> Unit = {}
 
     /**
      * A lambda to call for failed Vungle ad shows.
      */
-    private var onShowError: (baseAd: BaseAd, error: VungleError) -> Unit =
+    private var onFailedToPlay: (baseAd: BaseAd, error: VungleError) -> Unit =
         { _: BaseAd, _: VungleError -> }
 
     /**
@@ -193,7 +184,11 @@ class VungleAdapter : PartnerAdapter {
                     })
                 } ?: run {
                 PartnerLogController.log(SETUP_FAILED, "Missing App ID.")
-                resumeOnce(Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS)))
+                resumeOnce(
+                    Result.failure(
+                        ChartboostMediationAdException(ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS)
+                    )
+                )
             }
         }
     }
@@ -309,9 +304,11 @@ class VungleAdapter : PartnerAdapter {
             AdFormat.BANNER.key, "adaptive_banner" -> {
                 loadBannerAd(context, request, partnerAdListener)
             }
+
             AdFormat.INTERSTITIAL.key, AdFormat.REWARDED.key -> {
                 loadFullscreenAd(context, request, partnerAdListener)
             }
+
             else -> {
                 if (request.format.key == "rewarded_interstitial") {
                     loadFullscreenAd(context, request, partnerAdListener)
@@ -340,13 +337,16 @@ class VungleAdapter : PartnerAdapter {
                 PartnerLogController.log(SHOW_SUCCEEDED)
                 Result.success(partnerAd)
             }
+
             AdFormat.INTERSTITIAL.key, AdFormat.REWARDED.key -> showFullscreenAd(partnerAd)
             else -> {
                 if (partnerAd.request.format.key == "rewarded_interstitial") {
                     showFullscreenAd(partnerAd)
                 } else {
                     PartnerLogController.log(SHOW_FAILED)
-                    Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_SHOW_FAILURE_UNSUPPORTED_AD_FORMAT))
+                    Result.failure(
+                        ChartboostMediationAdException(ChartboostMediationError.CM_SHOW_FAILURE_UNSUPPORTED_AD_FORMAT)
+                    )
                 }
             }
         }
@@ -524,8 +524,8 @@ class VungleAdapter : PartnerAdapter {
                 }
             }
 
-            fun loadVungleFullScreenAd(ad: () -> BaseFullscreenAd) {
-                ad().apply {
+            fun loadVungleFullScreenAd(fullscreenAd: () -> BaseFullscreenAd) {
+                fullscreenAd().apply {
                     adListener = createFullScreenAdListener(request, listener, continuation)
                     load(adm)
                 }
@@ -535,9 +535,11 @@ class VungleAdapter : PartnerAdapter {
                 AdFormat.INTERSTITIAL -> loadVungleFullScreenAd {
                     InterstitialAd(context, request.partnerPlacement, adConfig)
                 }
+
                 AdFormat.REWARDED -> loadVungleFullScreenAd {
                     RewardedAd(context, request.partnerPlacement, adConfig)
                 }
+
                 else -> {
                     if (request.format.key == "rewarded_interstitial") {
                         loadVungleFullScreenAd {
@@ -566,47 +568,77 @@ class VungleAdapter : PartnerAdapter {
      *
      * @return Result.success(PartnerAd) if the ad was successfully shown, Result.failure(Exception) otherwise.
      */
-    private fun showFullscreenAd(
+    private suspend fun showFullscreenAd(
         partnerAd: PartnerAd
     ): Result<PartnerAd> {
-        fun canPlay(canPlay: () -> Boolean, play: () -> Unit): Result<PartnerAd> {
-            return if (canPlay()) {
-                play()
-                Result.success(partnerAd)
-            } else {
-                PartnerLogController.log(SHOW_FAILED)
-                Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_SHOW_FAILURE_AD_NOT_READY))
-            }
-        }
-
-        onShowSuccess = {
-            PartnerLogController.log(SHOW_SUCCEEDED)
-            Result.success(partnerAd)
-        }
-
-        onShowError = { baseAd, _ ->
-            PartnerLogController.log(
-                SHOW_FAILED,
-                "Vungle failed to show the fullscreen ad for placement " +
-                        "${baseAd.placementId}."
-            )
-        }
-
-        return when (val ad = partnerAd.ad) {
-            null -> {
-                PartnerLogController.log(SHOW_FAILED, "Ad is null.")
-                Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_SHOW_FAILURE_AD_NOT_FOUND))
+        return suspendCancellableCoroutine { continuation ->
+            fun resumeOnce(result: Result<PartnerAd>) {
+                if (continuation.isActive) {
+                    continuation.resume(result)
+                }
             }
 
-            is InterstitialAd -> canPlay(ad::canPlayAd, ad::play)
-            is RewardedAd -> canPlay(ad::canPlayAd, ad::play)
+            onPlaySuccess = {
+                PartnerLogController.log(SHOW_SUCCEEDED)
+                resumeOnce(Result.success(partnerAd))
+            }
 
-            else -> {
+            onFailedToPlay = { baseAd, adError ->
                 PartnerLogController.log(
                     SHOW_FAILED,
-                    "Ad is not an instance of InterstitialAd or RewardedAd."
+                    "Vungle failed to show the fullscreen ad for placement " +
+                            "${baseAd.placementId}."
                 )
-                Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_SHOW_FAILURE_WRONG_RESOURCE_TYPE))
+                resumeOnce(
+                    Result.failure(
+                        ChartboostMediationAdException(
+                            getChartboostMediationError(
+                                adError
+                            )
+                        )
+                    )
+                )
+            }
+
+            when (val ad = partnerAd.ad) {
+                null -> {
+                    PartnerLogController.log(SHOW_FAILED, "Ad is null.")
+                    resumeOnce(
+                        Result.failure(
+                            ChartboostMediationAdException(
+                                ChartboostMediationError.CM_SHOW_FAILURE_AD_NOT_FOUND
+                            )
+                        )
+                    )
+                }
+
+                is BaseFullscreenAd -> if (ad.canPlayAd()) {
+                    ad.play()
+                    resumeOnce(Result.success(partnerAd))
+                } else {
+                    PartnerLogController.log(SHOW_FAILED)
+                    resumeOnce(
+                        Result.failure(
+                            ChartboostMediationAdException(
+                                ChartboostMediationError.CM_SHOW_FAILURE_AD_NOT_READY
+                            )
+                        )
+                    )
+                }
+
+                else -> {
+                    PartnerLogController.log(
+                        SHOW_FAILED,
+                        "Ad is not an instance of InterstitialAd or RewardedAd."
+                    )
+                    resumeOnce(
+                        Result.failure(
+                            ChartboostMediationAdException(
+                                ChartboostMediationError.CM_SHOW_FAILURE_WRONG_RESOURCE_TYPE
+                            )
+                        )
+                    )
+                }
             }
         }
     }
@@ -672,8 +704,7 @@ class VungleAdapter : PartnerAdapter {
         }
 
         override fun onAdFailedToPlay(baseAd: BaseAd, adError: VungleError) {
-            PartnerLogController.log(SHOW_FAILED)
-            onShowError(baseAd, adError)
+            onFailedToPlay(baseAd, adError)
         }
 
         override fun onAdImpression(baseAd: BaseAd) {
@@ -714,8 +745,7 @@ class VungleAdapter : PartnerAdapter {
         }
 
         override fun onAdStart(baseAd: BaseAd) {
-            PartnerLogController.log(SHOW_SUCCEEDED)
-            onShowSuccess()
+            onPlaySuccess()
         }
     }
 
@@ -744,12 +774,12 @@ class VungleAdapter : PartnerAdapter {
     /**
      * Convert a given Vungle exception into a [ChartboostMediationError].
      *
-     * @param exception The Vungle exception to convert.
+     * @param vungleError The Vungle error to convert.
      *
      * @return The corresponding [ChartboostMediationError].
      */
-    private fun getChartboostMediationError(exception: VungleError?) =
-        when (exception?.code) {
+    private fun getChartboostMediationError(vungleError: VungleError?) =
+        when (vungleError?.code) {
             NO_SERVE, AD_FAILED_TO_DOWNLOAD -> ChartboostMediationError.CM_LOAD_FAILURE_NO_FILL
             SERVER_RETRY_ERROR, ASSET_DOWNLOAD_ERROR -> ChartboostMediationError.CM_AD_SERVER_ERROR
             NETWORK_ERROR, NETWORK_UNREACHABLE -> ChartboostMediationError.CM_NO_CONNECTIVITY

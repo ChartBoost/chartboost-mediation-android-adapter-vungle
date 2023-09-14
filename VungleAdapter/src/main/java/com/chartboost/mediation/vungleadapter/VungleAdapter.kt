@@ -35,11 +35,6 @@ import com.vungle.ads.VungleError.Companion.PLACEMENT_NOT_FOUND
 import com.vungle.ads.VungleError.Companion.SERVER_RETRY_ERROR
 import com.vungle.ads.VungleError.Companion.VUNGLE_NOT_INITIALIZED
 import com.vungle.ads.VunglePrivacySettings
-import com.vungle.ads.internal.model.DeviceNode
-import com.vungle.ads.internal.network.VungleApi
-import com.vungle.ads.internal.ui.VungleActivity
-import com.vungle.ads.internal.ui.VungleWebClient
-import com.vungle.ads.internal.util.VungleProvider
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.Json
@@ -149,7 +144,7 @@ class VungleAdapter : PartnerAdapter {
      */
     override suspend fun setUp(
         context: Context,
-        partnerConfiguration: PartnerConfiguration
+        partnerConfiguration: PartnerConfiguration,
     ): Result<Unit> {
         PartnerLogController.log(SETUP_STARTED)
 
@@ -282,7 +277,7 @@ class VungleAdapter : PartnerAdapter {
      */
     override suspend fun fetchBidderInformation(
         context: Context,
-        request: PreBidRequest
+        request: PreBidRequest,
     ): Map<String, String> {
         PartnerLogController.log(BIDDER_INFO_FETCH_STARTED)
 
@@ -577,7 +572,7 @@ class VungleAdapter : PartnerAdapter {
      * @return Result.success(PartnerAd) if the ad was successfully shown, Result.failure(Exception) otherwise.
      */
     private suspend fun showFullscreenAd(
-        partnerAd: PartnerAd
+        partnerAd: PartnerAd,
     ): Result<PartnerAd> {
         return suspendCancellableCoroutine { continuation ->
             fun resumeOnce(result: Result<PartnerAd>) {

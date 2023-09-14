@@ -182,7 +182,13 @@ class VungleAdapter : PartnerAdapter {
 
                         override fun onError(vungleError: VungleError) {
                             PartnerLogController.log(SETUP_FAILED, "Error: $vungleError")
-                            resumeOnce(Result.failure(ChartboostMediationAdException(getChartboostMediationError(vungleError))))
+                            resumeOnce(
+                                Result.failure(
+                                    ChartboostMediationAdException(
+                                        getChartboostMediationError(vungleError)
+                                    )
+                                )
+                            )
                         }
                     })
                 } ?: run {
@@ -432,7 +438,13 @@ class VungleAdapter : PartnerAdapter {
                         "Placement: ${baseAd.placementId}. Error code: ${adError.code}. " +
                                 "Message: ${adError.message}"
                     )
-                    resumeOnce(Result.failure(ChartboostMediationAdException(getChartboostMediationError(adError))))
+                    resumeOnce(
+                        Result.failure(
+                            ChartboostMediationAdException(
+                                getChartboostMediationError(adError)
+                            )
+                        )
+                    )
                 }
 
                 override fun onAdFailedToPlay(baseAd: BaseAd, adError: VungleError) {
@@ -533,7 +545,13 @@ class VungleAdapter : PartnerAdapter {
                         }
                     } else {
                         PartnerLogController.log(LOAD_FAILED)
-                        resumeOnce(Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT)))
+                        resumeOnce(
+                            Result.failure(
+                                ChartboostMediationAdException(
+                                    ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT
+                                )
+                            )
+                        )
                     }
                 }
             }
@@ -642,7 +660,15 @@ class VungleAdapter : PartnerAdapter {
                 "Placement: ${baseAd.placementId}. Error code: ${adError.code}. " +
                         "Message: ${adError.message}"
             )
-            resumeOnce(Result.failure(ChartboostMediationAdException(getChartboostMediationError(adError))))
+            resumeOnce(
+                Result.failure(
+                    ChartboostMediationAdException(
+                        getChartboostMediationError(
+                            adError
+                        )
+                    )
+                )
+            )
         }
 
         override fun onAdFailedToPlay(baseAd: BaseAd, adError: VungleError) {

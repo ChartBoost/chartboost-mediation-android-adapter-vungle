@@ -35,6 +35,11 @@ import com.vungle.ads.VungleError.Companion.PLACEMENT_NOT_FOUND
 import com.vungle.ads.VungleError.Companion.SERVER_RETRY_ERROR
 import com.vungle.ads.VungleError.Companion.VUNGLE_NOT_INITIALIZED
 import com.vungle.ads.VunglePrivacySettings
+import com.vungle.ads.internal.model.DeviceNode
+import com.vungle.ads.internal.network.VungleApi
+import com.vungle.ads.internal.ui.VungleActivity
+import com.vungle.ads.internal.ui.VungleWebClient
+import com.vungle.ads.internal.util.VungleProvider
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.Json
@@ -95,12 +100,12 @@ class VungleAdapter : PartnerAdapter {
     /**
      * A lambda to call for successful Vungle ad shows.
      */
-    private var onPlaySuccess: () -> Unit = {}
+    private var onPlaySucceeded: () -> Unit = {}
 
     /**
      * A lambda to call for failed Vungle ad shows.
      */
-    private var onFailedToPlay: (baseAd: BaseAd, error: VungleError) -> Unit =
+    private var onPlayFailed: (baseAd: BaseAd, error: VungleError) -> Unit =
         { _: BaseAd, _: VungleError -> }
 
     /**
@@ -172,7 +177,10 @@ class VungleAdapter : PartnerAdapter {
                         }
 
                         override fun onError(vungleError: VungleError) {
-                            PartnerLogController.log(SETUP_FAILED, "Error: $vungleError")
+                            PartnerLogController.log(
+                                SETUP_FAILED,
+                                "Error: ${getChartboostMediationError(vungleError)}"
+                            )
                             resumeOnce(
                                 Result.failure(
                                     ChartboostMediationAdException(
@@ -203,7 +211,7 @@ class VungleAdapter : PartnerAdapter {
     override fun setCcpaConsent(
         context: Context,
         hasGrantedCcpaConsent: Boolean,
-        privacyString: String
+        privacyString: String,
     ) {
         PartnerLogController.log(
             if (hasGrantedCcpaConsent) CCPA_CONSENT_GRANTED
@@ -223,7 +231,7 @@ class VungleAdapter : PartnerAdapter {
     override fun setGdpr(
         context: Context,
         applies: Boolean?,
-        gdprConsentStatus: GdprConsentStatus
+        gdprConsentStatus: GdprConsentStatus,
     ) {
         PartnerLogController.log(
             when (applies) {
@@ -296,7 +304,7 @@ class VungleAdapter : PartnerAdapter {
     override suspend fun load(
         context: Context,
         request: PartnerAdLoadRequest,
-        partnerAdListener: PartnerAdListener
+        partnerAdListener: PartnerAdListener,
     ): Result<PartnerAd> {
         PartnerLogController.log(LOAD_STARTED)
 
@@ -368,7 +376,7 @@ class VungleAdapter : PartnerAdapter {
              * For fullscreen ads, since Vungle does not provide an ad in the load callback, we don't
              * have an ad in PartnerAd to invalidate.
              */
-            AdFormat.BANNER.key, "adaptive_banner" -> finishVungleAd(partnerAd)
+            AdFormat.BANNER.key, "adaptive_banner" -> destroyBannerAd(partnerAd)
             else -> {
                 PartnerLogController.log(INVALIDATE_SUCCEEDED)
                 Result.success(partnerAd)
@@ -404,7 +412,7 @@ class VungleAdapter : PartnerAdapter {
     private suspend fun loadBannerAd(
         context: Context,
         request: PartnerAdLoadRequest,
-        listener: PartnerAdListener
+        listener: PartnerAdListener,
     ): Result<PartnerAd> {
         // Vungle needs a nullable adm instead of an empty string for non-programmatic ads.
         val adm = if (request.adm?.isEmpty() == true) null else request.adm
@@ -508,7 +516,7 @@ class VungleAdapter : PartnerAdapter {
     private suspend fun loadFullscreenAd(
         context: Context,
         request: PartnerAdLoadRequest,
-        listener: PartnerAdListener
+        listener: PartnerAdListener,
     ): Result<PartnerAd> {
         // Vungle needs a nullable adm instead of an empty string for non-programmatic ads.
         val adm = if (request.adm?.isEmpty() == true) null else request.adm
@@ -578,12 +586,12 @@ class VungleAdapter : PartnerAdapter {
                 }
             }
 
-            onPlaySuccess = {
+            onPlaySucceeded = {
                 PartnerLogController.log(SHOW_SUCCEEDED)
                 resumeOnce(Result.success(partnerAd))
             }
 
-            onFailedToPlay = { baseAd, adError ->
+            onPlayFailed = { baseAd, adError ->
                 PartnerLogController.log(
                     SHOW_FAILED,
                     "Vungle failed to show the fullscreen ad for placement " +
@@ -614,7 +622,6 @@ class VungleAdapter : PartnerAdapter {
 
                 is BaseFullscreenAd -> if (ad.canPlayAd()) {
                     ad.play()
-                    resumeOnce(Result.success(partnerAd))
                 } else {
                     PartnerLogController.log(SHOW_FAILED)
                     resumeOnce(
@@ -655,7 +662,7 @@ class VungleAdapter : PartnerAdapter {
     private fun createFullScreenAdListener(
         request: PartnerAdLoadRequest,
         listener: PartnerAdListener,
-        continuation: CancellableContinuation<Result<PartnerAd>>
+        continuation: CancellableContinuation<Result<PartnerAd>>,
     ) = object : FullscreenAdListener, RewardedAdListener {
         fun resumeOnce(result: Result<PartnerAd>) {
             if (continuation.isActive) {
@@ -704,7 +711,7 @@ class VungleAdapter : PartnerAdapter {
         }
 
         override fun onAdFailedToPlay(baseAd: BaseAd, adError: VungleError) {
-            onFailedToPlay(baseAd, adError)
+            onPlayFailed(baseAd, adError)
         }
 
         override fun onAdImpression(baseAd: BaseAd) {
@@ -745,7 +752,7 @@ class VungleAdapter : PartnerAdapter {
         }
 
         override fun onAdStart(baseAd: BaseAd) {
-            onPlaySuccess()
+            onPlaySucceeded()
         }
     }
 
@@ -756,7 +763,7 @@ class VungleAdapter : PartnerAdapter {
      *
      * @return Result.success(PartnerAd) if the ad was successfully destroyed, Result.failure(Exception) otherwise.
      */
-    private fun finishVungleAd(partnerAd: PartnerAd): Result<PartnerAd> {
+    private fun destroyBannerAd(partnerAd: PartnerAd): Result<PartnerAd> {
         return partnerAd.ad?.let { ad ->
             if (ad is BannerAd) {
                 ad.finishAd()

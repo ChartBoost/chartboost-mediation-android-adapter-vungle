@@ -528,10 +528,8 @@ class VungleAdapter : PartnerAdapter {
             }
 
             fun loadVungleFullScreenAd(fullscreenAd: BaseFullscreenAd) {
-                fullscreenAd.apply {
-                    adListener = createFullScreenAdListener(request, listener, continuation)
-                    load(adm)
-                }
+                fullscreenAd.adListener = createFullScreenAdListener(request, listener, continuation)
+                fullscreenAd.load(adm)
             }
 
             when (request.format) {

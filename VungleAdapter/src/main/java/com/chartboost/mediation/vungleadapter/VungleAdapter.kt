@@ -527,27 +527,19 @@ class VungleAdapter : PartnerAdapter {
                 }
             }
 
-            fun loadVungleFullScreenAd(fullscreenAd: () -> BaseFullscreenAd) {
-                fullscreenAd().apply {
+            fun loadVungleFullScreenAd(fullscreenAd: BaseFullscreenAd) {
+                fullscreenAd.apply {
                     adListener = createFullScreenAdListener(request, listener, continuation)
                     load(adm)
                 }
             }
 
             when (request.format) {
-                AdFormat.INTERSTITIAL -> loadVungleFullScreenAd {
-                    InterstitialAd(context, request.partnerPlacement, adConfig)
-                }
-
-                AdFormat.REWARDED -> loadVungleFullScreenAd {
-                    RewardedAd(context, request.partnerPlacement, adConfig)
-                }
-
+                AdFormat.INTERSTITIAL -> loadVungleFullScreenAd(InterstitialAd(context, request.partnerPlacement, adConfig))
+                AdFormat.REWARDED -> loadVungleFullScreenAd(RewardedAd(context, request.partnerPlacement, adConfig))
                 else -> {
                     if (request.format.key == "rewarded_interstitial") {
-                        loadVungleFullScreenAd {
-                            RewardedAd(context, request.partnerPlacement, adConfig)
-                        }
+                        loadVungleFullScreenAd(RewardedAd(context, request.partnerPlacement, adConfig))
                     } else {
                         PartnerLogController.log(LOAD_FAILED)
                         resumeOnce(

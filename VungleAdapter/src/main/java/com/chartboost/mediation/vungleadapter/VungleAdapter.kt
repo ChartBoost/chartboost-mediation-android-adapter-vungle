@@ -12,10 +12,30 @@ import android.util.Size
 import com.chartboost.heliumsdk.domain.*
 import com.chartboost.heliumsdk.utils.PartnerLogController
 import com.chartboost.heliumsdk.utils.PartnerLogController.PartnerAdapterEvents.*
-import com.vungle.warren.*
-import com.vungle.warren.Vungle.Consent
-import com.vungle.warren.error.VungleException
-import com.vungle.warren.error.VungleException.*
+import com.vungle.ads.AdConfig
+import com.vungle.ads.BannerAd
+import com.vungle.ads.BannerAdListener
+import com.vungle.ads.BannerAdSize
+import com.vungle.ads.BaseAd
+import com.vungle.ads.BaseFullscreenAd
+import com.vungle.ads.FullscreenAdListener
+import com.vungle.ads.InitializationListener
+import com.vungle.ads.InterstitialAd
+import com.vungle.ads.RewardedAd
+import com.vungle.ads.RewardedAdListener
+import com.vungle.ads.VungleAds
+import com.vungle.ads.VungleError
+import com.vungle.ads.VungleError.Companion.AD_FAILED_TO_DOWNLOAD
+import com.vungle.ads.VungleError.Companion.ASSET_DOWNLOAD_ERROR
+import com.vungle.ads.VungleError.Companion.INVALID_APP_ID
+import com.vungle.ads.VungleError.Companion.NETWORK_ERROR
+import com.vungle.ads.VungleError.Companion.NETWORK_UNREACHABLE
+import com.vungle.ads.VungleError.Companion.NO_SERVE
+import com.vungle.ads.VungleError.Companion.PLACEMENT_NOT_FOUND
+import com.vungle.ads.VungleError.Companion.SERVER_RETRY_ERROR
+import com.vungle.ads.VungleError.Companion.VUNGLE_NOT_INITIALIZED
+import com.vungle.ads.VunglePrivacySettings
+import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -28,47 +48,6 @@ import kotlin.coroutines.resume
 class VungleAdapter : PartnerAdapter {
     companion object {
         /**
-         * Flag to optionally set to disable Vungle's banner refresh. It must be set before the Vungle
-         * SDK is initialized for it to take effect.
-         */
-        public var disableBannerRefresh = false
-            set(value) {
-                field = value
-                PartnerLogController.log(
-                    CUSTOM,
-                    "Vungle banner ad refresh is ${if (value) "disabled" else "enabled"}."
-                )
-            }
-
-        /**
-         * Flag to optionally set to enable Vungle's mute setting. It can be set at any time and
-         * will take effect on the next ad request.
-         */
-        public var mute = false
-            set(value) {
-                field = value
-                PartnerLogController.log(
-                    CUSTOM,
-                    "Vungle mute setting is ${if (value) "enabled" else "disabled"}."
-                )
-            }
-
-        /**
-         * Flag to optionally set to enable/disable immersive mode for API 19 and newer. It can be
-         * set at any time and will take effect on the next ad request. Defaults to true.
-         *
-         * https://developer.android.com/training/system-ui/immersive.html.
-         */
-        public var immersiveMode = true
-            set(value) {
-                field = value
-                PartnerLogController.log(
-                    CUSTOM,
-                    "Vungle immersive mode is ${if (value) "enabled" else "disabled"}."
-                )
-            }
-
-        /**
          * Flag to optionally set to specify whether the back button will be immediately enabled
          * during the video ad, or it will be inactive until the on screen close button appears (the default behavior).
          * It can be set at any time and will take effect on the next ad request.
@@ -76,7 +55,7 @@ class VungleAdapter : PartnerAdapter {
          * Once enabled, the Android back button allows the user to skip the video ad and proceed
          * to the post-roll if one exists. If the ad does not have a post-roll, it simply ends.
          */
-        public var backBtnImmediatelyEnabled = false
+        var backBtnImmediatelyEnabled = false
             set(value) {
                 field = value
                 PartnerLogController.log(
@@ -86,27 +65,12 @@ class VungleAdapter : PartnerAdapter {
             }
 
         /**
-         * Flag to optionally set to specify whether the video transition animation should be enabled.
-         * It can be set at any time and will take effect on the next ad request.
-         *
-         * The default is enabled, which is a fade-in/fade-out animation.
-         */
-        public var transitionAnimationEnabled = true
-            set(value) {
-                field = value
-                PartnerLogController.log(
-                    CUSTOM,
-                    "Vungle transition animation setting is ${if (value) "enabled" else "disabled"}."
-                )
-            }
-
-        /**
          * If set, Vungle will check if it has an ad that can be rendered in the specified orientation.
          * This flag can be set at any time and will take effect on the next ad request.
          *
          * See [AdConfig.Orientation] for available options.
          */
-        public var adOrientation: Int? = null
+        var adOrientation: Int? = null
             set(value) {
                 field = value
                 PartnerLogController.log(
@@ -116,7 +80,6 @@ class VungleAdapter : PartnerAdapter {
                             AdConfig.PORTRAIT -> "PORTRAIT"
                             AdConfig.LANDSCAPE -> "LANDSCAPE"
                             AdConfig.AUTO_ROTATE -> "AUTO_ROTATE"
-                            AdConfig.MATCH_VIDEO -> "MATCH_VIDEO"
                             else -> "UNSPECIFIED"
                         }
                     }."
@@ -130,19 +93,15 @@ class VungleAdapter : PartnerAdapter {
     }
 
     /**
-     * A map of Chartboost Mediation's listeners for the corresponding load identifier.
+     * A lambda to call for successful Vungle ad shows.
      */
-    private val listeners = mutableMapOf<String, PartnerAdListener>()
+    private var onPlaySucceeded: () -> Unit = {}
 
     /**
-     * Track the Vungle ad markup for fullscreen ad load --> ad show cycle, keyed by the Vungle placement ID.
+     * A lambda to call for failed Vungle ad shows.
      */
-    private var adms: MutableMap<String, String?> = mutableMapOf()
-
-    /**
-     * Set holding all currently showing Vungle banner placements.
-     */
-    private val showingBanners: MutableSet<String> = mutableSetOf()
+    private var onPlayFailed: (baseAd: BaseAd, error: VungleError) -> Unit =
+        { _: BaseAd, _: VungleError -> }
 
     /**
      * Get the partner name for internal uses.
@@ -160,7 +119,7 @@ class VungleAdapter : PartnerAdapter {
      * Get the Vungle SDK version.
      */
     override val partnerSdkVersion: String
-        get() = com.vungle.warren.BuildConfig.VERSION_NAME
+        get() = VungleAds.getSdkVersion()
 
     /**
      * Get the Vungle adapter version.
@@ -185,7 +144,7 @@ class VungleAdapter : PartnerAdapter {
      */
     override suspend fun setUp(
         context: Context,
-        partnerConfiguration: PartnerConfiguration
+        partnerConfiguration: PartnerConfiguration,
     ): Result<Unit> {
         PartnerLogController.log(SETUP_STARTED)
 
@@ -202,47 +161,35 @@ class VungleAdapter : PartnerAdapter {
                 .trim()
                 .takeIf { it.isNotEmpty() }
                 ?.let { appId ->
-                    Vungle.init(appId, context.applicationContext, object : InitCallback {
+                    VungleAds.init(context, appId, object : InitializationListener {
                         override fun onSuccess() {
-                            Plugin.addWrapperInfo(
-                                VungleApiClient.WrapperFramework.vunglehbs,
+                            VungleAds.setIntegrationName(
+                                VungleAds.WrapperFramework.vunglehbs,
                                 adapterVersion
                             )
 
-                            resumeOnce(
-                                Result.success(
-                                    PartnerLogController.log(
-                                        SETUP_SUCCEEDED
-                                    )
-                                )
-                            )
+                            resumeOnce(Result.success(PartnerLogController.log(SETUP_SUCCEEDED)))
                         }
 
-                        override fun onError(exception: VungleException) {
-                            PartnerLogController.log(SETUP_FAILED, "Error: $exception")
-
+                        override fun onError(vungleError: VungleError) {
+                            PartnerLogController.log(
+                                SETUP_FAILED,
+                                "Error: ${getChartboostMediationError(vungleError)}"
+                            )
                             resumeOnce(
                                 Result.failure(
                                     ChartboostMediationAdException(
-                                        getChartboostMediationError(
-                                            exception
-                                        )
+                                        getChartboostMediationError(vungleError)
                                     )
                                 )
                             )
                         }
-
-                        override fun onAutoCacheAdAvailable(placementId: String) {}
-                    }, VungleSettings.Builder().apply {
-                        if (disableBannerRefresh) disableBannerRefresh()
-                    }.build())
+                    })
                 } ?: run {
                 PartnerLogController.log(SETUP_FAILED, "Missing App ID.")
                 resumeOnce(
                     Result.failure(
-                        ChartboostMediationAdException(
-                            ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS
-                        )
+                        ChartboostMediationAdException(ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS)
                     )
                 )
             }
@@ -259,20 +206,14 @@ class VungleAdapter : PartnerAdapter {
     override fun setCcpaConsent(
         context: Context,
         hasGrantedCcpaConsent: Boolean,
-        privacyString: String
+        privacyString: String,
     ) {
         PartnerLogController.log(
             if (hasGrantedCcpaConsent) CCPA_CONSENT_GRANTED
             else CCPA_CONSENT_DENIED
         )
 
-        Vungle.updateCCPAStatus(
-            if (hasGrantedCcpaConsent) {
-                Consent.OPTED_IN
-            } else {
-                Consent.OPTED_OUT
-            }
-        )
+        VunglePrivacySettings.setCCPAStatus(hasGrantedCcpaConsent)
     }
 
     /**
@@ -285,7 +226,7 @@ class VungleAdapter : PartnerAdapter {
     override fun setGdpr(
         context: Context,
         applies: Boolean?,
-        gdprConsentStatus: GdprConsentStatus
+        gdprConsentStatus: GdprConsentStatus,
     ) {
         PartnerLogController.log(
             when (applies) {
@@ -304,13 +245,10 @@ class VungleAdapter : PartnerAdapter {
         )
 
         if (applies == true) {
-            val consent: Consent =
-                if (gdprConsentStatus == GdprConsentStatus.GDPR_CONSENT_GRANTED) {
-                    Consent.OPTED_IN
-                } else {
-                    Consent.OPTED_OUT
-                }
-            Vungle.updateConsentStatus(consent, "")
+            VunglePrivacySettings.setGDPRStatus(
+                optIn = gdprConsentStatus == GdprConsentStatus.GDPR_CONSENT_GRANTED,
+                consentMessageVersion = ""
+            )
         }
     }
 
@@ -326,7 +264,7 @@ class VungleAdapter : PartnerAdapter {
             else COPPA_NOT_SUBJECT
         )
 
-        // NO-OP. Vungle does not have an API for setting COPPA.
+        // NO-OP. See: https://support.vungle.com/hc/en-us/articles/360047780372#coppa-implementation-0-2
     }
 
     /**
@@ -339,11 +277,11 @@ class VungleAdapter : PartnerAdapter {
      */
     override suspend fun fetchBidderInformation(
         context: Context,
-        request: PreBidRequest
+        request: PreBidRequest,
     ): Map<String, String> {
         PartnerLogController.log(BIDDER_INFO_FETCH_STARTED)
 
-        val token = Vungle.getAvailableBidTokens(context) ?: ""
+        val token = VungleAds.getBiddingToken(context) ?: ""
 
         PartnerLogController.log(if (token.isNotEmpty()) BIDDER_INFO_FETCH_SUCCEEDED else BIDDER_INFO_FETCH_FAILED)
         return mapOf("bid_token" to token)
@@ -361,20 +299,22 @@ class VungleAdapter : PartnerAdapter {
     override suspend fun load(
         context: Context,
         request: PartnerAdLoadRequest,
-        partnerAdListener: PartnerAdListener
+        partnerAdListener: PartnerAdListener,
     ): Result<PartnerAd> {
         PartnerLogController.log(LOAD_STARTED)
 
         return when (request.format.key) {
             AdFormat.BANNER.key, "adaptive_banner" -> {
-                loadBannerAd(request, partnerAdListener)
+                loadBannerAd(context, request, partnerAdListener)
             }
+
             AdFormat.INTERSTITIAL.key, AdFormat.REWARDED.key -> {
-                loadFullscreenAd(request, partnerAdListener)
+                loadFullscreenAd(context, request, partnerAdListener)
             }
+
             else -> {
                 if (request.format.key == "rewarded_interstitial") {
-                    loadFullscreenAd(request, partnerAdListener)
+                    loadFullscreenAd(context, request, partnerAdListener)
                 } else {
                     PartnerLogController.log(LOAD_FAILED)
                     Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT))
@@ -394,24 +334,22 @@ class VungleAdapter : PartnerAdapter {
     override suspend fun show(context: Context, partnerAd: PartnerAd): Result<PartnerAd> {
         PartnerLogController.log(SHOW_STARTED)
 
-        val listener = listeners.remove(partnerAd.request.identifier)
-
         return when (partnerAd.request.format.key) {
             // Banner ads do not have a separate "show" mechanism.
             AdFormat.BANNER.key, "adaptive_banner" -> {
                 PartnerLogController.log(SHOW_SUCCEEDED)
                 Result.success(partnerAd)
             }
-            AdFormat.INTERSTITIAL.key, AdFormat.REWARDED.key -> showFullscreenAd(
-                partnerAd,
-                listener
-            )
+
+            AdFormat.INTERSTITIAL.key, AdFormat.REWARDED.key -> showFullscreenAd(partnerAd)
             else -> {
                 if (partnerAd.request.format.key == "rewarded_interstitial") {
-                    showFullscreenAd(partnerAd, listener)
+                    showFullscreenAd(partnerAd)
                 } else {
                     PartnerLogController.log(SHOW_FAILED)
-                    Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_SHOW_FAILURE_UNSUPPORTED_AD_FORMAT))
+                    Result.failure(
+                        ChartboostMediationAdException(ChartboostMediationError.CM_SHOW_FAILURE_UNSUPPORTED_AD_FORMAT)
+                    )
                 }
             }
         }
@@ -426,9 +364,6 @@ class VungleAdapter : PartnerAdapter {
      */
     override suspend fun invalidate(partnerAd: PartnerAd): Result<PartnerAd> {
         PartnerLogController.log(INVALIDATE_STARTED)
-
-        listeners.remove(partnerAd.request.identifier)
-        adms.remove(partnerAd.request.partnerPlacement)
 
         return when (partnerAd.request.format.key) {
             /**
@@ -463,27 +398,19 @@ class VungleAdapter : PartnerAdapter {
     /**
      * Attempt to load a Vungle banner ad.
      *
+     * @param context The current [Context].
      * @param request An [PartnerAdLoadRequest] instance containing relevant data for the current ad load call.
      * @param listener A [PartnerAdListener] to notify Chartboost Mediation of ad events.
+     *
+     * @return Result.success(PartnerAd) if the ad was successfully discarded, Result.failure(Exception) otherwise.
      */
     private suspend fun loadBannerAd(
+        context: Context,
         request: PartnerAdLoadRequest,
-        listener: PartnerAdListener
+        listener: PartnerAdListener,
     ): Result<PartnerAd> {
-        val bannerAdConfig = BannerAdConfig()
-        bannerAdConfig.adSize = getVungleBannerSize(request.size)
-        bannerAdConfig.setMuted(mute)
-
         // Vungle needs a nullable adm instead of an empty string for non-programmatic ads.
         val adm = if (request.adm?.isEmpty() == true) null else request.adm
-
-        if (showingBanners.contains(request.partnerPlacement)) {
-            PartnerLogController.log(
-                LOAD_FAILED,
-                "Vungle is already showing a banner. Failing the banner load for ${request.chartboostPlacement}"
-            )
-            return Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_SHOW_IN_PROGRESS))
-        }
 
         return suspendCancellableCoroutine { continuation ->
             fun resumeOnce(result: Result<PartnerAd>) {
@@ -492,126 +419,65 @@ class VungleAdapter : PartnerAdapter {
                 }
             }
 
-            Banners.loadBanner(
+            val vungleBanner = BannerAd(
+                context,
                 request.partnerPlacement,
-                adm,
-                bannerAdConfig,
-                object : LoadAdCallback {
-                    override fun onAdLoad(placementId: String) {
-                        if (!Banners.canPlayAd(
-                                placementId,
-                                adm,
-                                bannerAdConfig.adSize
-                            )
-                        ) {
-                            PartnerLogController.log(LOAD_FAILED, "Placement: $placementId.")
-
-                            resumeOnce(
-                                Result.failure(
-                                    ChartboostMediationAdException(
-                                        ChartboostMediationError.CM_LOAD_FAILURE_MISMATCHED_AD_PARAMS
-                                    )
-                                )
-                            )
-                            return
-                        }
-
-                        val ad = Banners.getBanner(
-                            placementId,
-                            adm,
-                            bannerAdConfig,
-                            object : PlayAdCallback {
-                                override fun creativeId(creativeId: String) {
-                                    // Ignored.
-                                }
-
-                                override fun onAdStart(id: String) {
-                                    // Ignored.
-                                }
-
-                                @Deprecated("Deprecated by Vungle. Use onAdEnd(String) instead.")
-                                override fun onAdEnd(
-                                    id: String,
-                                    completed: Boolean,
-                                    isCTAClicked: Boolean
-                                ) {
-                                }
-
-                                override fun onAdEnd(id: String) {
-                                    showingBanners.remove(request.partnerPlacement)
-                                }
-
-                                override fun onAdClick(id: String) {
-                                    PartnerLogController.log(DID_CLICK)
-                                    listener.onPartnerAdClicked(
-                                        createPartnerAd(null, request)
-                                    )
-                                }
-
-                                override fun onAdRewarded(id: String) {
-                                    // Ignored. Not supporting rewarded banner ads.
-                                }
-
-                                override fun onAdLeftApplication(id: String) {
-                                    // Ignored.
-                                }
-
-                                override fun onError(
-                                    placementReferenceId: String,
-                                    exception: VungleException
-                                ) {
-                                    showingBanners.remove(request.partnerPlacement)
-                                    PartnerLogController.log(
-                                        SHOW_FAILED,
-                                        "Placement: $placementId. Error code: ${exception.exceptionCode}. " +
-                                                "Message: ${exception.message}"
-                                    )
-                                }
-
-                                override fun onAdViewed(id: String) {
-                                    PartnerLogController.log(DID_TRACK_IMPRESSION)
-                                    showingBanners.add(request.partnerPlacement)
-                                    listener.onPartnerAdImpression(
-                                        createPartnerAd(null, request)
-                                    )
-                                }
-                            })
-
-                        ad?.let {
-                            PartnerLogController.log(LOAD_SUCCEEDED)
-                            resumeOnce(
-                                Result.success(createPartnerAd(it, request))
-                            )
-                        } ?: run {
-                            PartnerLogController.log(LOAD_FAILED, "Placement: $placementId.")
-                            resumeOnce(
-                                Result.failure(
-                                    ChartboostMediationAdException(
-                                        ChartboostMediationError.CM_LOAD_FAILURE_UNKNOWN
-                                    )
-                                )
-                            )
-                        }
-                    }
-
-                    override fun onError(placementId: String, exception: VungleException) {
-                        PartnerLogController.log(
-                            LOAD_FAILED,
-                            "Placement: $placementId. Error code: ${exception.exceptionCode}. " +
-                                    "Message: ${exception.message}"
-                        )
-                        resumeOnce(
-                            Result.failure(
-                                ChartboostMediationAdException(
-                                    getChartboostMediationError(
-                                        exception
-                                    )
-                                )
-                            )
-                        )
-                    }
-                }
+                getVungleBannerSize(request.size)
             )
+
+            vungleBanner.adListener = object : BannerAdListener {
+                override fun onAdClicked(baseAd: BaseAd) {
+                    PartnerLogController.log(DID_CLICK)
+                    listener.onPartnerAdClicked(
+                        createPartnerAd(baseAd, request)
+                    )
+                }
+
+                override fun onAdEnd(baseAd: BaseAd) {}
+
+                override fun onAdFailedToLoad(baseAd: BaseAd, adError: VungleError) {
+                    PartnerLogController.log(
+                        LOAD_FAILED,
+                        "Placement: ${baseAd.placementId}. Error code: ${adError.code}. " +
+                                "Message: ${adError.message}"
+                    )
+                    resumeOnce(
+                        Result.failure(
+                            ChartboostMediationAdException(
+                                getChartboostMediationError(adError)
+                            )
+                        )
+                    )
+                }
+
+                override fun onAdFailedToPlay(baseAd: BaseAd, adError: VungleError) {
+                    PartnerLogController.log(
+                        SHOW_FAILED,
+                        "Placement: ${baseAd.placementId}. Error code: ${adError.code}. " +
+                                "Message: ${adError.message}"
+                    )
+                }
+
+                override fun onAdImpression(baseAd: BaseAd) {
+                    PartnerLogController.log(DID_TRACK_IMPRESSION)
+                    listener.onPartnerAdImpression(
+                        createPartnerAd(baseAd, request)
+                    )
+                }
+
+                override fun onAdLeftApplication(baseAd: BaseAd) {}
+
+                override fun onAdLoaded(baseAd: BaseAd) {
+                    PartnerLogController.log(LOAD_SUCCEEDED)
+                    resumeOnce(
+                        Result.success(createPartnerAd(vungleBanner.getBannerView(), request))
+                    )
+                }
+
+                override fun onAdStart(baseAd: BaseAd) {}
+            }
+
+            vungleBanner.load(adm)
         }
     }
 
@@ -622,39 +488,36 @@ class VungleAdapter : PartnerAdapter {
      *
      * @return The Vungle banner size.
      */
-    private fun getVungleBannerSize(size: Size?): AdConfig.AdSize {
+    private fun getVungleBannerSize(size: Size?): BannerAdSize {
         return size?.height?.let {
             when {
-                it in 50 until 90 -> AdConfig.AdSize.BANNER
-                it in 90 until 250 -> AdConfig.AdSize.BANNER_LEADERBOARD
-                it >= 250 -> AdConfig.AdSize.VUNGLE_MREC
-                else -> AdConfig.AdSize.BANNER
+                it in 50 until 90 -> BannerAdSize.BANNER
+                it in 90 until 250 -> BannerAdSize.BANNER_LEADERBOARD
+                it >= 250 -> BannerAdSize.VUNGLE_MREC
+                else -> BannerAdSize.BANNER
             }
-        } ?: AdConfig.AdSize.BANNER
+        } ?: BannerAdSize.BANNER
     }
 
     /**
      * Attempt to load a Vungle fullscreen ad. This method supports both all fullscreen ads.
      *
+     * @param context The current [Context].
      * @param request An [PartnerAdLoadRequest] instance containing relevant data for the current ad load call.
      * @param listener A [PartnerAdListener] to notify Chartboost Mediation of ad events.
+     *
+     * @return Result.success(PartnerAd) if the ad was successfully discarded, Result.failure(Exception) otherwise.
      */
     private suspend fun loadFullscreenAd(
+        context: Context,
         request: PartnerAdLoadRequest,
-        listener: PartnerAdListener
+        listener: PartnerAdListener,
     ): Result<PartnerAd> {
-        // Save the listener for later use.
-        listeners[request.identifier] = listener
-
         // Vungle needs a nullable adm instead of an empty string for non-programmatic ads.
         val adm = if (request.adm?.isEmpty() == true) null else request.adm
-        adms[request.partnerPlacement] = adm
 
         val adConfig = AdConfig()
-        adConfig.setMuted(mute)
-        adConfig.setTransitionAnimationEnabled(transitionAnimationEnabled)
         adConfig.setBackButtonImmediatelyEnabled(backBtnImmediatelyEnabled)
-        adConfig.setImmersiveMode(immersiveMode)
         adOrientation?.let { adConfig.adOrientation = it }
 
         return suspendCancellableCoroutine { continuation ->
@@ -664,51 +527,43 @@ class VungleAdapter : PartnerAdapter {
                 }
             }
 
-            Vungle.loadAd(
-                request.partnerPlacement,
-                adm,
-                adConfig,
-                object : LoadAdCallback {
-                    override fun onAdLoad(id: String) {
-                        PartnerLogController.log(LOAD_SUCCEEDED)
-                        resumeOnce(
-                            Result.success(createPartnerAd(null, request))
-                        )
-                    }
+            fun loadVungleFullScreenAd(fullscreenAd: BaseFullscreenAd) {
+                fullscreenAd.adListener = createFullScreenAdListener(request, listener, continuation)
+                fullscreenAd.load(adm)
+            }
 
-                    override fun onError(placementId: String?, exception: VungleException?) {
-                        PartnerLogController.log(
-                            LOAD_FAILED,
-                            "Placement: $placementId. Error code: ${exception?.exceptionCode}. " +
-                                    "Message: ${exception?.message}"
-                        )
+            when (request.format) {
+                AdFormat.INTERSTITIAL -> loadVungleFullScreenAd(InterstitialAd(context, request.partnerPlacement, adConfig))
+                AdFormat.REWARDED -> loadVungleFullScreenAd(RewardedAd(context, request.partnerPlacement, adConfig))
+                else -> {
+                    if (request.format.key == "rewarded_interstitial") {
+                        loadVungleFullScreenAd(RewardedAd(context, request.partnerPlacement, adConfig))
+                    } else {
+                        PartnerLogController.log(LOAD_FAILED)
                         resumeOnce(
                             Result.failure(
                                 ChartboostMediationAdException(
-                                    getChartboostMediationError(
-                                        exception
-                                    )
+                                    ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT
                                 )
                             )
                         )
                     }
                 }
-            )
+            }
         }
     }
+
 
     /**
      * Attempt to show a Vungle fullscreen ad.
      *
      * @param partnerAd The [PartnerAd] object containing the Vungle ad to be shown.
-     * @param listener A [PartnerAdListener] to notify Chartboost Mediation of ad events.
+     *
+     * @return Result.success(PartnerAd) if the ad was successfully shown, Result.failure(Exception) otherwise.
      */
     private suspend fun showFullscreenAd(
         partnerAd: PartnerAd,
-        listener: PartnerAdListener?
     ): Result<PartnerAd> {
-        val adm = adms.remove(partnerAd.request.partnerPlacement)
-
         return suspendCancellableCoroutine { continuation ->
             fun resumeOnce(result: Result<PartnerAd>) {
                 if (continuation.isActive) {
@@ -716,101 +571,173 @@ class VungleAdapter : PartnerAdapter {
                 }
             }
 
-            if (Vungle.canPlayAd(partnerAd.request.partnerPlacement, adm)) {
-                Vungle.playAd(
-                    partnerAd.request.partnerPlacement,
-                    adm,
-                    null,
-                    object : PlayAdCallback {
-                        override fun creativeId(creativeId: String) {
-                            // Ignored.
-                        }
+            onPlaySucceeded = {
+                PartnerLogController.log(SHOW_SUCCEEDED)
+                resumeOnce(Result.success(partnerAd))
+            }
 
-                        override fun onAdStart(id: String) {
-                            PartnerLogController.log(SHOW_SUCCEEDED)
-                            resumeOnce(Result.success(partnerAd))
-                        }
-
-                        @Deprecated("Deprecated by Vungle. Use onAdEnd(String) instead.")
-                        override fun onAdEnd(
-                            id: String,
-                            completed: Boolean,
-                            isCTAClicked: Boolean
-                        ) {
-                        }
-
-                        override fun onAdEnd(id: String) {
-                            PartnerLogController.log(DID_DISMISS)
-                            listener?.onPartnerAdDismissed(partnerAd, null)
-                                ?: PartnerLogController.log(
-                                    CUSTOM,
-                                    "Unable to fire onAdEnd for Vungle adapter. Listener is null."
-                                )
-                        }
-
-                        override fun onAdClick(id: String) {
-                            PartnerLogController.log(DID_CLICK)
-                            listener?.onPartnerAdClicked(partnerAd) ?: PartnerLogController.log(
-                                CUSTOM,
-                                "Unable to fire onAdClick for Vungle adapter. Listener is null."
-                            )
-                        }
-
-                        override fun onAdRewarded(id: String) {
-                            PartnerLogController.log(DID_REWARD)
-                            listener?.onPartnerAdRewarded(partnerAd)
-                                ?: PartnerLogController.log(
-                                    CUSTOM,
-                                    "Unable to fire onAdRewarded for Vungle adapter. Listener is null."
-                                )
-                        }
-
-                        override fun onAdLeftApplication(id: String) {}
-
-                        override fun onError(
-                            placementReferenceId: String,
-                            exception: VungleException
-                        ) {
-                            PartnerLogController.log(
-                                SHOW_FAILED,
-                                "Vungle failed to show the fullscreen ad for placement " +
-                                        "$placementReferenceId. Error code: ${exception.exceptionCode}. " +
-                                        "Message: ${exception.message}"
-                            )
-
-                            resumeOnce(
-                                Result.failure(
-                                    ChartboostMediationAdException(
-                                        getChartboostMediationError(
-                                            exception
-                                        )
-                                    )
-                                )
-                            )
-                        }
-
-                        override fun onAdViewed(id: String) {
-                            PartnerLogController.log(DID_TRACK_IMPRESSION)
-                            listener?.onPartnerAdImpression(partnerAd) ?: PartnerLogController.log(
-                                CUSTOM,
-                                "Unable to fire onAdViewed for Vungle adapter. Listener is null."
-                            )
-                        }
-                    })
-            } else {
+            onPlayFailed = { baseAd, adError ->
                 PartnerLogController.log(
                     SHOW_FAILED,
                     "Vungle failed to show the fullscreen ad for placement " +
-                            "${partnerAd.request.partnerPlacement}."
+                            "${baseAd.placementId}."
                 )
                 resumeOnce(
                     Result.failure(
                         ChartboostMediationAdException(
-                            ChartboostMediationError.CM_SHOW_FAILURE_UNKNOWN
+                            getChartboostMediationError(
+                                adError
+                            )
                         )
                     )
                 )
             }
+
+            when (val ad = partnerAd.ad) {
+                null -> {
+                    PartnerLogController.log(SHOW_FAILED, "Ad is null.")
+                    resumeOnce(
+                        Result.failure(
+                            ChartboostMediationAdException(
+                                ChartboostMediationError.CM_SHOW_FAILURE_AD_NOT_FOUND
+                            )
+                        )
+                    )
+                }
+
+                is BaseFullscreenAd -> if (ad.canPlayAd()) {
+                    ad.play()
+                } else {
+                    PartnerLogController.log(SHOW_FAILED)
+                    resumeOnce(
+                        Result.failure(
+                            ChartboostMediationAdException(
+                                ChartboostMediationError.CM_SHOW_FAILURE_AD_NOT_READY
+                            )
+                        )
+                    )
+                }
+
+                else -> {
+                    PartnerLogController.log(
+                        SHOW_FAILED,
+                        "Ad is not an instance of InterstitialAd or RewardedAd."
+                    )
+                    resumeOnce(
+                        Result.failure(
+                            ChartboostMediationAdException(
+                                ChartboostMediationError.CM_SHOW_FAILURE_WRONG_RESOURCE_TYPE
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Create a Vungle fullscreen ad listener.
+     *
+     * @param request An [PartnerAdLoadRequest] instance containing relevant data for the current ad load call.
+     * @param listener A [PartnerAdListener] to notify Chartboost Mediation of ad events.
+     * @param continuation A [CancellableContinuation] to notify when the [Result] has succeeded or failed.
+     *
+     * @return a fullscreen listener to attach to a Vungle ad object.
+     */
+    private fun createFullScreenAdListener(
+        request: PartnerAdLoadRequest,
+        listener: PartnerAdListener,
+        continuation: CancellableContinuation<Result<PartnerAd>>,
+    ) = object : FullscreenAdListener, RewardedAdListener {
+        fun resumeOnce(result: Result<PartnerAd>) {
+            if (continuation.isActive) {
+                continuation.resume(result)
+            }
+        }
+
+        override fun onAdClicked(baseAd: BaseAd) {
+            PartnerLogController.log(DID_CLICK)
+            listener.onPartnerAdClicked(
+                PartnerAd(
+                    ad = baseAd,
+                    details = emptyMap(),
+                    request = request,
+                )
+            )
+        }
+
+        override fun onAdEnd(baseAd: BaseAd) {
+            PartnerLogController.log(DID_DISMISS)
+            listener.onPartnerAdDismissed(
+                PartnerAd(
+                    ad = baseAd,
+                    details = emptyMap(),
+                    request = request,
+                ),
+                null
+            )
+        }
+
+        override fun onAdFailedToLoad(baseAd: BaseAd, adError: VungleError) {
+            PartnerLogController.log(
+                LOAD_FAILED,
+                "Placement: ${baseAd.placementId}. Error code: ${adError.code}. " +
+                        "Message: ${adError.message}"
+            )
+            resumeOnce(
+                Result.failure(
+                    ChartboostMediationAdException(
+                        getChartboostMediationError(
+                            adError
+                        )
+                    )
+                )
+            )
+        }
+
+        override fun onAdFailedToPlay(baseAd: BaseAd, adError: VungleError) {
+            onPlayFailed(baseAd, adError)
+        }
+
+        override fun onAdImpression(baseAd: BaseAd) {
+            PartnerLogController.log(DID_TRACK_IMPRESSION)
+            listener.onPartnerAdImpression(
+                PartnerAd(
+                    ad = baseAd,
+                    details = emptyMap(),
+                    request = request,
+                )
+            )
+        }
+
+        override fun onAdLeftApplication(baseAd: BaseAd) {}
+
+        override fun onAdLoaded(baseAd: BaseAd) {
+            PartnerLogController.log(LOAD_SUCCEEDED)
+            resumeOnce(
+                Result.success(
+                    PartnerAd(
+                        ad = baseAd,
+                        details = emptyMap(),
+                        request = request
+                    )
+                )
+            )
+        }
+
+        override fun onAdRewarded(baseAd: BaseAd) {
+            PartnerLogController.log(DID_REWARD)
+            listener.onPartnerAdRewarded(
+                PartnerAd(
+                    ad = baseAd,
+                    details = emptyMap(),
+                    request = request,
+                )
+            )
+        }
+
+        override fun onAdStart(baseAd: BaseAd) {
+            onPlaySucceeded()
         }
     }
 
@@ -823,7 +750,10 @@ class VungleAdapter : PartnerAdapter {
      */
     private fun destroyBannerAd(partnerAd: PartnerAd): Result<PartnerAd> {
         return partnerAd.ad?.let { ad ->
-            if (ad is VungleBanner) ad.destroyAd()
+            if (ad is BannerAd) {
+                ad.finishAd()
+                ad.adListener = null
+            }
 
             PartnerLogController.log(INVALIDATE_SUCCEEDED)
             Result.success(partnerAd)
@@ -836,17 +766,17 @@ class VungleAdapter : PartnerAdapter {
     /**
      * Convert a given Vungle exception into a [ChartboostMediationError].
      *
-     * @param exception The Vungle exception to convert.
+     * @param vungleError The Vungle error to convert.
      *
      * @return The corresponding [ChartboostMediationError].
      */
-    private fun getChartboostMediationError(exception: VungleException?) =
-        when (exception?.exceptionCode) {
-            NO_SERVE, AD_FAILED_TO_DOWNLOAD, NO_AUTO_CACHED_PLACEMENT -> ChartboostMediationError.CM_LOAD_FAILURE_NO_FILL
-            SERVER_ERROR, SERVER_TEMPORARY_UNAVAILABLE, ASSET_DOWNLOAD_ERROR -> ChartboostMediationError.CM_AD_SERVER_ERROR
+    private fun getChartboostMediationError(vungleError: VungleError?) =
+        when (vungleError?.code) {
+            NO_SERVE, AD_FAILED_TO_DOWNLOAD -> ChartboostMediationError.CM_LOAD_FAILURE_NO_FILL
+            SERVER_RETRY_ERROR, ASSET_DOWNLOAD_ERROR -> ChartboostMediationError.CM_AD_SERVER_ERROR
             NETWORK_ERROR, NETWORK_UNREACHABLE -> ChartboostMediationError.CM_NO_CONNECTIVITY
-            VUNGLE_NOT_INTIALIZED -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_UNKNOWN
-            MISSING_REQUIRED_ARGUMENTS_FOR_INIT -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS
+            VUNGLE_NOT_INITIALIZED -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_UNKNOWN
+            INVALID_APP_ID -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS
             PLACEMENT_NOT_FOUND -> ChartboostMediationError.CM_LOAD_FAILURE_INVALID_PARTNER_PLACEMENT
             else -> ChartboostMediationError.CM_PARTNER_ERROR
         }

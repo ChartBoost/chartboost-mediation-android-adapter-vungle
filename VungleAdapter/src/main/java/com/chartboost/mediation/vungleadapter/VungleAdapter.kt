@@ -33,7 +33,7 @@ import com.vungle.ads.VungleError.Companion.NETWORK_UNREACHABLE
 import com.vungle.ads.VungleError.Companion.NO_SERVE
 import com.vungle.ads.VungleError.Companion.PLACEMENT_NOT_FOUND
 import com.vungle.ads.VungleError.Companion.SERVER_RETRY_ERROR
-import com.vungle.ads.VungleError.Companion.VUNGLE_NOT_INITIALIZED
+import com.vungle.ads.VungleError.Companion.SDK_NOT_INITIALIZED
 import com.vungle.ads.VunglePrivacySettings
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -775,7 +775,7 @@ class VungleAdapter : PartnerAdapter {
             NO_SERVE, AD_FAILED_TO_DOWNLOAD -> ChartboostMediationError.CM_LOAD_FAILURE_NO_FILL
             SERVER_RETRY_ERROR, ASSET_DOWNLOAD_ERROR -> ChartboostMediationError.CM_AD_SERVER_ERROR
             NETWORK_ERROR, NETWORK_UNREACHABLE -> ChartboostMediationError.CM_NO_CONNECTIVITY
-            VUNGLE_NOT_INITIALIZED -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_UNKNOWN
+            SDK_NOT_INITIALIZED -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_UNKNOWN
             INVALID_APP_ID -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS
             PLACEMENT_NOT_FOUND -> ChartboostMediationError.CM_LOAD_FAILURE_INVALID_PARTNER_PLACEMENT
             else -> ChartboostMediationError.CM_PARTNER_ERROR

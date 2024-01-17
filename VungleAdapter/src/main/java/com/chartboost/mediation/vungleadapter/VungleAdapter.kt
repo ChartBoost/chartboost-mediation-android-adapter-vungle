@@ -1,6 +1,6 @@
 /*
  * Copyright 2022-2023 Chartboost, Inc.
- * 
+ *
  * Use of this source code is governed by an MIT-style
  * license that can be found in the LICENSE file.
  */
@@ -32,8 +32,8 @@ import com.vungle.ads.VungleError.Companion.NETWORK_ERROR
 import com.vungle.ads.VungleError.Companion.NETWORK_UNREACHABLE
 import com.vungle.ads.VungleError.Companion.NO_SERVE
 import com.vungle.ads.VungleError.Companion.PLACEMENT_NOT_FOUND
-import com.vungle.ads.VungleError.Companion.SERVER_RETRY_ERROR
 import com.vungle.ads.VungleError.Companion.SDK_NOT_INITIALIZED
+import com.vungle.ads.VungleError.Companion.SERVER_RETRY_ERROR
 import com.vungle.ads.VunglePrivacySettings
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -60,7 +60,7 @@ class VungleAdapter : PartnerAdapter {
                 field = value
                 PartnerLogController.log(
                     CUSTOM,
-                    "Vungle back button setting is ${if (value) "enabled" else "disabled"}."
+                    "Vungle back button setting is ${if (value) "enabled" else "disabled"}.",
                 )
             }
 
@@ -82,7 +82,7 @@ class VungleAdapter : PartnerAdapter {
                             AdConfig.AUTO_ROTATE -> "AUTO_ROTATE"
                             else -> "UNSPECIFIED"
                         }
-                    }."
+                    }.",
                 )
             }
 
@@ -156,41 +156,45 @@ class VungleAdapter : PartnerAdapter {
             }
 
             Json.decodeFromJsonElement<String>(
-                (partnerConfiguration.credentials as JsonObject).getValue(APP_ID_KEY)
+                (partnerConfiguration.credentials as JsonObject).getValue(APP_ID_KEY),
             )
                 .trim()
                 .takeIf { it.isNotEmpty() }
                 ?.let { appId ->
-                    VungleAds.init(context, appId, object : InitializationListener {
-                        override fun onSuccess() {
-                            VungleAds.setIntegrationName(
-                                VungleAds.WrapperFramework.vunglehbs,
-                                adapterVersion
-                            )
-
-                            resumeOnce(Result.success(PartnerLogController.log(SETUP_SUCCEEDED)))
-                        }
-
-                        override fun onError(vungleError: VungleError) {
-                            PartnerLogController.log(
-                                SETUP_FAILED,
-                                "Error: ${getChartboostMediationError(vungleError)}"
-                            )
-                            resumeOnce(
-                                Result.failure(
-                                    ChartboostMediationAdException(
-                                        getChartboostMediationError(vungleError)
-                                    )
+                    VungleAds.init(
+                        context,
+                        appId,
+                        object : InitializationListener {
+                            override fun onSuccess() {
+                                VungleAds.setIntegrationName(
+                                    VungleAds.WrapperFramework.vunglehbs,
+                                    adapterVersion,
                                 )
-                            )
-                        }
-                    })
+
+                                resumeOnce(Result.success(PartnerLogController.log(SETUP_SUCCEEDED)))
+                            }
+
+                            override fun onError(vungleError: VungleError) {
+                                PartnerLogController.log(
+                                    SETUP_FAILED,
+                                    "Error: ${getChartboostMediationError(vungleError)}",
+                                )
+                                resumeOnce(
+                                    Result.failure(
+                                        ChartboostMediationAdException(
+                                            getChartboostMediationError(vungleError),
+                                        ),
+                                    ),
+                                )
+                            }
+                        },
+                    )
                 } ?: run {
                 PartnerLogController.log(SETUP_FAILED, "Missing App ID.")
                 resumeOnce(
                     Result.failure(
-                        ChartboostMediationAdException(ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS)
-                    )
+                        ChartboostMediationAdException(ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS),
+                    ),
                 )
             }
         }
@@ -209,8 +213,11 @@ class VungleAdapter : PartnerAdapter {
         privacyString: String,
     ) {
         PartnerLogController.log(
-            if (hasGrantedCcpaConsent) CCPA_CONSENT_GRANTED
-            else CCPA_CONSENT_DENIED
+            if (hasGrantedCcpaConsent) {
+                CCPA_CONSENT_GRANTED
+            } else {
+                CCPA_CONSENT_DENIED
+            },
         )
 
         VunglePrivacySettings.setCCPAStatus(hasGrantedCcpaConsent)
@@ -233,7 +240,7 @@ class VungleAdapter : PartnerAdapter {
                 true -> GDPR_APPLICABLE
                 false -> GDPR_NOT_APPLICABLE
                 else -> GDPR_UNKNOWN
-            }
+            },
         )
 
         PartnerLogController.log(
@@ -241,13 +248,13 @@ class VungleAdapter : PartnerAdapter {
                 GdprConsentStatus.GDPR_CONSENT_UNKNOWN -> GDPR_CONSENT_UNKNOWN
                 GdprConsentStatus.GDPR_CONSENT_GRANTED -> GDPR_CONSENT_GRANTED
                 GdprConsentStatus.GDPR_CONSENT_DENIED -> GDPR_CONSENT_DENIED
-            }
+            },
         )
 
         if (applies == true) {
             VunglePrivacySettings.setGDPRStatus(
                 optIn = gdprConsentStatus == GdprConsentStatus.GDPR_CONSENT_GRANTED,
-                consentMessageVersion = ""
+                consentMessageVersion = "",
             )
         }
     }
@@ -258,10 +265,16 @@ class VungleAdapter : PartnerAdapter {
      * @param context The current [Context].
      * @param isSubjectToCoppa True if the user is subject to COPPA, false otherwise.
      */
-    override fun setUserSubjectToCoppa(context: Context, isSubjectToCoppa: Boolean) {
+    override fun setUserSubjectToCoppa(
+        context: Context,
+        isSubjectToCoppa: Boolean,
+    ) {
         PartnerLogController.log(
-            if (isSubjectToCoppa) COPPA_SUBJECT
-            else COPPA_NOT_SUBJECT
+            if (isSubjectToCoppa) {
+                COPPA_SUBJECT
+            } else {
+                COPPA_NOT_SUBJECT
+            },
         )
 
         // NO-OP. See: https://support.vungle.com/hc/en-us/articles/360047780372#coppa-implementation-0-2
@@ -331,7 +344,10 @@ class VungleAdapter : PartnerAdapter {
      *
      * @return Result.success(PartnerAd) if the ad was successfully shown, Result.failure(Exception) otherwise.
      */
-    override suspend fun show(context: Context, partnerAd: PartnerAd): Result<PartnerAd> {
+    override suspend fun show(
+        context: Context,
+        partnerAd: PartnerAd,
+    ): Result<PartnerAd> {
         PartnerLogController.log(SHOW_STARTED)
 
         return when (partnerAd.request.format.key) {
@@ -348,7 +364,7 @@ class VungleAdapter : PartnerAdapter {
                 } else {
                     PartnerLogController.log(SHOW_FAILED)
                     Result.failure(
-                        ChartboostMediationAdException(ChartboostMediationError.CM_SHOW_FAILURE_UNSUPPORTED_AD_FORMAT)
+                        ChartboostMediationAdException(ChartboostMediationError.CM_SHOW_FAILURE_UNSUPPORTED_AD_FORMAT),
                     )
                 }
             }
@@ -387,11 +403,14 @@ class VungleAdapter : PartnerAdapter {
      *
      * @return A [PartnerAd] instance.
      */
-    private fun createPartnerAd(ad: Any?, request: PartnerAdLoadRequest): PartnerAd {
+    private fun createPartnerAd(
+        ad: Any?,
+        request: PartnerAdLoadRequest,
+    ): PartnerAd {
         return PartnerAd(
             ad = ad,
             details = emptyMap(),
-            request = request
+            request = request,
         )
     }
 
@@ -419,63 +438,71 @@ class VungleAdapter : PartnerAdapter {
                 }
             }
 
-            val vungleBanner = BannerAd(
-                context,
-                request.partnerPlacement,
-                getVungleBannerSize(request.size)
-            )
+            val vungleBanner =
+                BannerAd(
+                    context,
+                    request.partnerPlacement,
+                    getVungleBannerSize(request.size),
+                )
 
-            vungleBanner.adListener = object : BannerAdListener {
-                override fun onAdClicked(baseAd: BaseAd) {
-                    PartnerLogController.log(DID_CLICK)
-                    listener.onPartnerAdClicked(
-                        createPartnerAd(baseAd, request)
-                    )
-                }
-
-                override fun onAdEnd(baseAd: BaseAd) {}
-
-                override fun onAdFailedToLoad(baseAd: BaseAd, adError: VungleError) {
-                    PartnerLogController.log(
-                        LOAD_FAILED,
-                        "Placement: ${baseAd.placementId}. Error code: ${adError.code}. " +
-                                "Message: ${adError.message}"
-                    )
-                    resumeOnce(
-                        Result.failure(
-                            ChartboostMediationAdException(
-                                getChartboostMediationError(adError)
-                            )
+            vungleBanner.adListener =
+                object : BannerAdListener {
+                    override fun onAdClicked(baseAd: BaseAd) {
+                        PartnerLogController.log(DID_CLICK)
+                        listener.onPartnerAdClicked(
+                            createPartnerAd(baseAd, request),
                         )
-                    )
+                    }
+
+                    override fun onAdEnd(baseAd: BaseAd) {}
+
+                    override fun onAdFailedToLoad(
+                        baseAd: BaseAd,
+                        adError: VungleError,
+                    ) {
+                        PartnerLogController.log(
+                            LOAD_FAILED,
+                            "Placement: ${baseAd.placementId}. Error code: ${adError.code}. " +
+                                "Message: ${adError.message}",
+                        )
+                        resumeOnce(
+                            Result.failure(
+                                ChartboostMediationAdException(
+                                    getChartboostMediationError(adError),
+                                ),
+                            ),
+                        )
+                    }
+
+                    override fun onAdFailedToPlay(
+                        baseAd: BaseAd,
+                        adError: VungleError,
+                    ) {
+                        PartnerLogController.log(
+                            SHOW_FAILED,
+                            "Placement: ${baseAd.placementId}. Error code: ${adError.code}. " +
+                                "Message: ${adError.message}",
+                        )
+                    }
+
+                    override fun onAdImpression(baseAd: BaseAd) {
+                        PartnerLogController.log(DID_TRACK_IMPRESSION)
+                        listener.onPartnerAdImpression(
+                            createPartnerAd(baseAd, request),
+                        )
+                    }
+
+                    override fun onAdLeftApplication(baseAd: BaseAd) {}
+
+                    override fun onAdLoaded(baseAd: BaseAd) {
+                        PartnerLogController.log(LOAD_SUCCEEDED)
+                        resumeOnce(
+                            Result.success(createPartnerAd(vungleBanner.getBannerView(), request)),
+                        )
+                    }
+
+                    override fun onAdStart(baseAd: BaseAd) {}
                 }
-
-                override fun onAdFailedToPlay(baseAd: BaseAd, adError: VungleError) {
-                    PartnerLogController.log(
-                        SHOW_FAILED,
-                        "Placement: ${baseAd.placementId}. Error code: ${adError.code}. " +
-                                "Message: ${adError.message}"
-                    )
-                }
-
-                override fun onAdImpression(baseAd: BaseAd) {
-                    PartnerLogController.log(DID_TRACK_IMPRESSION)
-                    listener.onPartnerAdImpression(
-                        createPartnerAd(baseAd, request)
-                    )
-                }
-
-                override fun onAdLeftApplication(baseAd: BaseAd) {}
-
-                override fun onAdLoaded(baseAd: BaseAd) {
-                    PartnerLogController.log(LOAD_SUCCEEDED)
-                    resumeOnce(
-                        Result.success(createPartnerAd(vungleBanner.getBannerView(), request))
-                    )
-                }
-
-                override fun onAdStart(baseAd: BaseAd) {}
-            }
 
             vungleBanner.load(adm)
         }
@@ -543,16 +570,15 @@ class VungleAdapter : PartnerAdapter {
                         resumeOnce(
                             Result.failure(
                                 ChartboostMediationAdException(
-                                    ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT
-                                )
-                            )
+                                    ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT,
+                                ),
+                            ),
                         )
                     }
                 }
             }
         }
     }
-
 
     /**
      * Attempt to show a Vungle fullscreen ad.
@@ -561,9 +587,7 @@ class VungleAdapter : PartnerAdapter {
      *
      * @return Result.success(PartnerAd) if the ad was successfully shown, Result.failure(Exception) otherwise.
      */
-    private suspend fun showFullscreenAd(
-        partnerAd: PartnerAd,
-    ): Result<PartnerAd> {
+    private suspend fun showFullscreenAd(partnerAd: PartnerAd): Result<PartnerAd> {
         return suspendCancellableCoroutine { continuation ->
             fun resumeOnce(result: Result<PartnerAd>) {
                 if (continuation.isActive) {
@@ -580,16 +604,16 @@ class VungleAdapter : PartnerAdapter {
                 PartnerLogController.log(
                     SHOW_FAILED,
                     "Vungle failed to show the fullscreen ad for placement " +
-                            "${baseAd.placementId}."
+                        "${baseAd.placementId}.",
                 )
                 resumeOnce(
                     Result.failure(
                         ChartboostMediationAdException(
                             getChartboostMediationError(
-                                adError
-                            )
-                        )
-                    )
+                                adError,
+                            ),
+                        ),
+                    ),
                 )
             }
 
@@ -599,36 +623,37 @@ class VungleAdapter : PartnerAdapter {
                     resumeOnce(
                         Result.failure(
                             ChartboostMediationAdException(
-                                ChartboostMediationError.CM_SHOW_FAILURE_AD_NOT_FOUND
-                            )
-                        )
+                                ChartboostMediationError.CM_SHOW_FAILURE_AD_NOT_FOUND,
+                            ),
+                        ),
                     )
                 }
 
-                is BaseFullscreenAd -> if (ad.canPlayAd()) {
-                    ad.play()
-                } else {
-                    PartnerLogController.log(SHOW_FAILED)
-                    resumeOnce(
-                        Result.failure(
-                            ChartboostMediationAdException(
-                                ChartboostMediationError.CM_SHOW_FAILURE_AD_NOT_READY
-                            )
+                is BaseFullscreenAd ->
+                    if (ad.canPlayAd()) {
+                        ad.play()
+                    } else {
+                        PartnerLogController.log(SHOW_FAILED)
+                        resumeOnce(
+                            Result.failure(
+                                ChartboostMediationAdException(
+                                    ChartboostMediationError.CM_SHOW_FAILURE_AD_NOT_READY,
+                                ),
+                            ),
                         )
-                    )
-                }
+                    }
 
                 else -> {
                     PartnerLogController.log(
                         SHOW_FAILED,
-                        "Ad is not an instance of InterstitialAd or RewardedAd."
+                        "Ad is not an instance of InterstitialAd or RewardedAd.",
                     )
                     resumeOnce(
                         Result.failure(
                             ChartboostMediationAdException(
-                                ChartboostMediationError.CM_SHOW_FAILURE_WRONG_RESOURCE_TYPE
-                            )
-                        )
+                                ChartboostMediationError.CM_SHOW_FAILURE_WRONG_RESOURCE_TYPE,
+                            ),
+                        ),
                     )
                 }
             }
@@ -662,7 +687,7 @@ class VungleAdapter : PartnerAdapter {
                     ad = baseAd,
                     details = emptyMap(),
                     request = request,
-                )
+                ),
             )
         }
 
@@ -674,28 +699,34 @@ class VungleAdapter : PartnerAdapter {
                     details = emptyMap(),
                     request = request,
                 ),
-                null
+                null,
             )
         }
 
-        override fun onAdFailedToLoad(baseAd: BaseAd, adError: VungleError) {
+        override fun onAdFailedToLoad(
+            baseAd: BaseAd,
+            adError: VungleError,
+        ) {
             PartnerLogController.log(
                 LOAD_FAILED,
                 "Placement: ${baseAd.placementId}. Error code: ${adError.code}. " +
-                        "Message: ${adError.message}"
+                    "Message: ${adError.message}",
             )
             resumeOnce(
                 Result.failure(
                     ChartboostMediationAdException(
                         getChartboostMediationError(
-                            adError
-                        )
-                    )
-                )
+                            adError,
+                        ),
+                    ),
+                ),
             )
         }
 
-        override fun onAdFailedToPlay(baseAd: BaseAd, adError: VungleError) {
+        override fun onAdFailedToPlay(
+            baseAd: BaseAd,
+            adError: VungleError,
+        ) {
             onPlayFailed(baseAd, adError)
         }
 
@@ -706,7 +737,7 @@ class VungleAdapter : PartnerAdapter {
                     ad = baseAd,
                     details = emptyMap(),
                     request = request,
-                )
+                ),
             )
         }
 
@@ -719,9 +750,9 @@ class VungleAdapter : PartnerAdapter {
                     PartnerAd(
                         ad = baseAd,
                         details = emptyMap(),
-                        request = request
-                    )
-                )
+                        request = request,
+                    ),
+                ),
             )
         }
 
@@ -732,7 +763,7 @@ class VungleAdapter : PartnerAdapter {
                     ad = baseAd,
                     details = emptyMap(),
                     request = request,
-                )
+                ),
             )
         }
 

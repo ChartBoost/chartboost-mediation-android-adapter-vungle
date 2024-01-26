@@ -549,9 +549,15 @@ class VungleAdapter : PartnerAdapter {
         adOrientation?.let { adConfig.adOrientation = it }
 
         return suspendCancellableCoroutine { continuation ->
+            val continuationRef = WeakReference(continuation)
+
             fun resumeOnce(result: Result<PartnerAd>) {
-                if (continuation.isActive) {
-                    continuation.resume(result)
+                continuationRef.get()?.let {
+                    if (it.isActive) {
+                        it.resume(result)
+                    }
+                } ?: run {
+                    PartnerLogController.log(LOAD_FAILED, "Unable to resume continuation. Continuation is null.")
                 }
             }
 
@@ -559,7 +565,7 @@ class VungleAdapter : PartnerAdapter {
                 fullscreenAd.adListener = createFullScreenAdListener(
                     request = request,
                     listener = listener,
-                    continuationRef = WeakReference(continuation)
+                    continuationRef = continuationRef
                 )
                 fullscreenAd.load(adm)
             }

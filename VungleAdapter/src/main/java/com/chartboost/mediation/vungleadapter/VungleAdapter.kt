@@ -40,6 +40,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
+import java.lang.ref.WeakReference
 import kotlin.coroutines.resume
 
 /**
@@ -555,7 +556,11 @@ class VungleAdapter : PartnerAdapter {
             }
 
             fun loadVungleFullScreenAd(fullscreenAd: BaseFullscreenAd) {
-                fullscreenAd.adListener = createFullScreenAdListener(request, listener, continuation)
+                fullscreenAd.adListener = createFullScreenAdListener(
+                    request = request,
+                    listener = listener,
+                    continuationRef = WeakReference(continuation)
+                )
                 fullscreenAd.load(adm)
             }
 
@@ -589,9 +594,15 @@ class VungleAdapter : PartnerAdapter {
      */
     private suspend fun showFullscreenAd(partnerAd: PartnerAd): Result<PartnerAd> {
         return suspendCancellableCoroutine { continuation ->
+            val continuationRef = WeakReference(continuation)
+
             fun resumeOnce(result: Result<PartnerAd>) {
-                if (continuation.isActive) {
-                    continuation.resume(result)
+                continuationRef.get()?.let {
+                    if (it.isActive) {
+                        it.resume(result)
+                    }
+                } ?: run {
+                    PartnerLogController.log(LOAD_FAILED, "Unable to resume continuation. Continuation is null.")
                 }
             }
 
@@ -672,11 +683,16 @@ class VungleAdapter : PartnerAdapter {
     private fun createFullScreenAdListener(
         request: PartnerAdLoadRequest,
         listener: PartnerAdListener,
-        continuation: CancellableContinuation<Result<PartnerAd>>,
+        continuationRef: WeakReference<CancellableContinuation<Result<PartnerAd>>>,
     ) = object : FullscreenAdListener, RewardedAdListener {
+
         fun resumeOnce(result: Result<PartnerAd>) {
-            if (continuation.isActive) {
-                continuation.resume(result)
+            continuationRef.get()?.let {
+                if (it.isActive) {
+                    it.resume(result)
+                }
+            } ?: run {
+                PartnerLogController.log(LOAD_FAILED, "Unable to resume continuation. Continuation is null.")
             }
         }
 
@@ -728,6 +744,7 @@ class VungleAdapter : PartnerAdapter {
             adError: VungleError,
         ) {
             onPlayFailed(baseAd, adError)
+            onPlayFailed = { _, _ -> }
         }
 
         override fun onAdImpression(baseAd: BaseAd) {
@@ -769,6 +786,7 @@ class VungleAdapter : PartnerAdapter {
 
         override fun onAdStart(baseAd: BaseAd) {
             onPlaySucceeded()
+            onPlaySucceeded = {}
         }
     }
 

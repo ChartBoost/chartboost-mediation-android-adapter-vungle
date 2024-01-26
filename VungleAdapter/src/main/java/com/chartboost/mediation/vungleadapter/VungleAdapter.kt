@@ -682,7 +682,7 @@ class VungleAdapter : PartnerAdapter {
      *
      * @param request An [PartnerAdLoadRequest] instance containing relevant data for the current ad load call.
      * @param listener A [PartnerAdListener] to notify Chartboost Mediation of ad events.
-     * @param continuation A [CancellableContinuation] to notify when the [Result] has succeeded or failed.
+     * @param continuationRef A [CancellableContinuation] to notify when the [Result] has succeeded or failed.
      *
      * @return a fullscreen listener to attach to a Vungle ad object.
      */

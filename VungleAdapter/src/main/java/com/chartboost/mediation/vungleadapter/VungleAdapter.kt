@@ -91,18 +91,36 @@ class VungleAdapter : PartnerAdapter {
          * Key for parsing the Vungle app ID.
          */
         private const val APP_ID_KEY = "vungle_app_id"
+
+        /**
+         * Convert a given Vungle exception into a [ChartboostMediationError].
+         *
+         * @param vungleError The Vungle error to convert.
+         *
+         * @return The corresponding [ChartboostMediationError].
+         */
+        internal fun getChartboostMediationError(vungleError: VungleError?) =
+            when (vungleError?.code) {
+                NO_SERVE, AD_FAILED_TO_DOWNLOAD -> ChartboostMediationError.CM_LOAD_FAILURE_NO_FILL
+                SERVER_RETRY_ERROR, ASSET_DOWNLOAD_ERROR -> ChartboostMediationError.CM_AD_SERVER_ERROR
+                NETWORK_ERROR, NETWORK_UNREACHABLE -> ChartboostMediationError.CM_NO_CONNECTIVITY
+                SDK_NOT_INITIALIZED -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_UNKNOWN
+                INVALID_APP_ID -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS
+                PLACEMENT_NOT_FOUND -> ChartboostMediationError.CM_LOAD_FAILURE_INVALID_PARTNER_PLACEMENT
+                else -> ChartboostMediationError.CM_PARTNER_ERROR
+            }
+
+        /**
+         * A lambda to call for successful Vungle ad shows.
+         */
+        internal var onPlaySucceeded: () -> Unit = {}
+
+        /**
+         * A lambda to call for failed Vungle ad shows.
+         */
+        internal var onPlayFailed: (baseAd: BaseAd, error: VungleError) -> Unit =
+            { _: BaseAd, _: VungleError -> }
     }
-
-    /**
-     * A lambda to call for successful Vungle ad shows.
-     */
-    private var onPlaySucceeded: () -> Unit = {}
-
-    /**
-     * A lambda to call for failed Vungle ad shows.
-     */
-    private var onPlayFailed: (baseAd: BaseAd, error: VungleError) -> Unit =
-        { _: BaseAd, _: VungleError -> }
 
     /**
      * Get the partner name for internal uses.
@@ -562,7 +580,7 @@ class VungleAdapter : PartnerAdapter {
             }
 
             fun loadVungleFullScreenAd(fullscreenAd: BaseFullscreenAd) {
-                fullscreenAd.adListener = createFullScreenAdListener(
+                fullscreenAd.adListener = VungleFullScreenAdListener(
                     request = request,
                     listener = listener,
                     continuationRef = continuationRef
@@ -686,11 +704,11 @@ class VungleAdapter : PartnerAdapter {
      *
      * @return a fullscreen listener to attach to a Vungle ad object.
      */
-    private fun createFullScreenAdListener(
-        request: PartnerAdLoadRequest,
-        listener: PartnerAdListener,
-        continuationRef: WeakReference<CancellableContinuation<Result<PartnerAd>>>,
-    ) = object : FullscreenAdListener, RewardedAdListener {
+    private class VungleFullScreenAdListener(
+        private val request: PartnerAdLoadRequest,
+        private val listener: PartnerAdListener,
+        private val continuationRef: WeakReference<CancellableContinuation<Result<PartnerAd>>>,
+    ) : FullscreenAdListener, RewardedAdListener {
 
         fun resumeOnce(result: Result<PartnerAd>) {
             continuationRef.get()?.let {
@@ -817,22 +835,4 @@ class VungleAdapter : PartnerAdapter {
             Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_INVALIDATE_FAILURE_AD_NOT_FOUND))
         }
     }
-
-    /**
-     * Convert a given Vungle exception into a [ChartboostMediationError].
-     *
-     * @param vungleError The Vungle error to convert.
-     *
-     * @return The corresponding [ChartboostMediationError].
-     */
-    private fun getChartboostMediationError(vungleError: VungleError?) =
-        when (vungleError?.code) {
-            NO_SERVE, AD_FAILED_TO_DOWNLOAD -> ChartboostMediationError.CM_LOAD_FAILURE_NO_FILL
-            SERVER_RETRY_ERROR, ASSET_DOWNLOAD_ERROR -> ChartboostMediationError.CM_AD_SERVER_ERROR
-            NETWORK_ERROR, NETWORK_UNREACHABLE -> ChartboostMediationError.CM_NO_CONNECTIVITY
-            SDK_NOT_INITIALIZED -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_UNKNOWN
-            INVALID_APP_ID -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS
-            PLACEMENT_NOT_FOUND -> ChartboostMediationError.CM_LOAD_FAILURE_INVALID_PARTNER_PLACEMENT
-            else -> ChartboostMediationError.CM_PARTNER_ERROR
-        }
 }

@@ -40,6 +40,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
+import java.lang.ref.WeakReference
 import kotlin.coroutines.resume
 
 /**
@@ -90,18 +91,36 @@ class VungleAdapter : PartnerAdapter {
          * Key for parsing the Vungle app ID.
          */
         private const val APP_ID_KEY = "vungle_app_id"
+
+        /**
+         * Convert a given Vungle exception into a [ChartboostMediationError].
+         *
+         * @param vungleError The Vungle error to convert.
+         *
+         * @return The corresponding [ChartboostMediationError].
+         */
+        internal fun getChartboostMediationError(vungleError: VungleError?) =
+            when (vungleError?.code) {
+                NO_SERVE, AD_FAILED_TO_DOWNLOAD -> ChartboostMediationError.CM_LOAD_FAILURE_NO_FILL
+                SERVER_RETRY_ERROR, ASSET_DOWNLOAD_ERROR -> ChartboostMediationError.CM_AD_SERVER_ERROR
+                NETWORK_ERROR, NETWORK_UNREACHABLE -> ChartboostMediationError.CM_NO_CONNECTIVITY
+                SDK_NOT_INITIALIZED -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_UNKNOWN
+                INVALID_APP_ID -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS
+                PLACEMENT_NOT_FOUND -> ChartboostMediationError.CM_LOAD_FAILURE_INVALID_PARTNER_PLACEMENT
+                else -> ChartboostMediationError.CM_PARTNER_ERROR
+            }
+
+        /**
+         * A lambda to call for successful Vungle ad shows.
+         */
+        internal var onPlaySucceeded: () -> Unit = {}
+
+        /**
+         * A lambda to call for failed Vungle ad shows.
+         */
+        internal var onPlayFailed: (baseAd: BaseAd, error: VungleError) -> Unit =
+            { _: BaseAd, _: VungleError -> }
     }
-
-    /**
-     * A lambda to call for successful Vungle ad shows.
-     */
-    private var onPlaySucceeded: () -> Unit = {}
-
-    /**
-     * A lambda to call for failed Vungle ad shows.
-     */
-    private var onPlayFailed: (baseAd: BaseAd, error: VungleError) -> Unit =
-        { _: BaseAd, _: VungleError -> }
 
     /**
      * Get the partner name for internal uses.
@@ -548,14 +567,24 @@ class VungleAdapter : PartnerAdapter {
         adOrientation?.let { adConfig.adOrientation = it }
 
         return suspendCancellableCoroutine { continuation ->
+            val continuationRef = WeakReference(continuation)
+
             fun resumeOnce(result: Result<PartnerAd>) {
-                if (continuation.isActive) {
-                    continuation.resume(result)
+                continuationRef.get()?.let {
+                    if (it.isActive) {
+                        it.resume(result)
+                    }
+                } ?: run {
+                    PartnerLogController.log(LOAD_FAILED, "Unable to resume continuation. Continuation is null.")
                 }
             }
 
             fun loadVungleFullScreenAd(fullscreenAd: BaseFullscreenAd) {
-                fullscreenAd.adListener = createFullScreenAdListener(request, listener, continuation)
+                fullscreenAd.adListener = VungleFullScreenAdListener(
+                    request = request,
+                    listener = listener,
+                    continuationRef = continuationRef
+                )
                 fullscreenAd.load(adm)
             }
 
@@ -589,9 +618,15 @@ class VungleAdapter : PartnerAdapter {
      */
     private suspend fun showFullscreenAd(partnerAd: PartnerAd): Result<PartnerAd> {
         return suspendCancellableCoroutine { continuation ->
+            val continuationRef = WeakReference(continuation)
+
             fun resumeOnce(result: Result<PartnerAd>) {
-                if (continuation.isActive) {
-                    continuation.resume(result)
+                continuationRef.get()?.let {
+                    if (it.isActive) {
+                        it.resume(result)
+                    }
+                } ?: run {
+                    PartnerLogController.log(LOAD_FAILED, "Unable to resume continuation. Continuation is null.")
                 }
             }
 
@@ -665,18 +700,23 @@ class VungleAdapter : PartnerAdapter {
      *
      * @param request An [PartnerAdLoadRequest] instance containing relevant data for the current ad load call.
      * @param listener A [PartnerAdListener] to notify Chartboost Mediation of ad events.
-     * @param continuation A [CancellableContinuation] to notify when the [Result] has succeeded or failed.
+     * @param continuationRef A [CancellableContinuation] to notify when the [Result] has succeeded or failed.
      *
      * @return a fullscreen listener to attach to a Vungle ad object.
      */
-    private fun createFullScreenAdListener(
-        request: PartnerAdLoadRequest,
-        listener: PartnerAdListener,
-        continuation: CancellableContinuation<Result<PartnerAd>>,
-    ) = object : FullscreenAdListener, RewardedAdListener {
+    private class VungleFullScreenAdListener(
+        private val request: PartnerAdLoadRequest,
+        private val listener: PartnerAdListener,
+        private val continuationRef: WeakReference<CancellableContinuation<Result<PartnerAd>>>,
+    ) : FullscreenAdListener, RewardedAdListener {
+
         fun resumeOnce(result: Result<PartnerAd>) {
-            if (continuation.isActive) {
-                continuation.resume(result)
+            continuationRef.get()?.let {
+                if (it.isActive) {
+                    it.resume(result)
+                }
+            } ?: run {
+                PartnerLogController.log(LOAD_FAILED, "Unable to resume continuation. Continuation is null.")
             }
         }
 
@@ -728,6 +768,7 @@ class VungleAdapter : PartnerAdapter {
             adError: VungleError,
         ) {
             onPlayFailed(baseAd, adError)
+            onPlayFailed = { _, _ -> }
         }
 
         override fun onAdImpression(baseAd: BaseAd) {
@@ -769,6 +810,7 @@ class VungleAdapter : PartnerAdapter {
 
         override fun onAdStart(baseAd: BaseAd) {
             onPlaySucceeded()
+            onPlaySucceeded = {}
         }
     }
 
@@ -793,22 +835,4 @@ class VungleAdapter : PartnerAdapter {
             Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_INVALIDATE_FAILURE_AD_NOT_FOUND))
         }
     }
-
-    /**
-     * Convert a given Vungle exception into a [ChartboostMediationError].
-     *
-     * @param vungleError The Vungle error to convert.
-     *
-     * @return The corresponding [ChartboostMediationError].
-     */
-    private fun getChartboostMediationError(vungleError: VungleError?) =
-        when (vungleError?.code) {
-            NO_SERVE, AD_FAILED_TO_DOWNLOAD -> ChartboostMediationError.CM_LOAD_FAILURE_NO_FILL
-            SERVER_RETRY_ERROR, ASSET_DOWNLOAD_ERROR -> ChartboostMediationError.CM_AD_SERVER_ERROR
-            NETWORK_ERROR, NETWORK_UNREACHABLE -> ChartboostMediationError.CM_NO_CONNECTIVITY
-            SDK_NOT_INITIALIZED -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_UNKNOWN
-            INVALID_APP_ID -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS
-            PLACEMENT_NOT_FOUND -> ChartboostMediationError.CM_LOAD_FAILURE_INVALID_PARTNER_PLACEMENT
-            else -> ChartboostMediationError.CM_PARTNER_ERROR
-        }
 }

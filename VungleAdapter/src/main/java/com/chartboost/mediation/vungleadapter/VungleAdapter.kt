@@ -1,6 +1,6 @@
 /*
  * Copyright 2023-2024 Chartboost, Inc.
- * 
+ *
  * Use of this source code is governed by an MIT-style
  * license that can be found in the LICENSE file.
  */
@@ -9,9 +9,9 @@ package com.chartboost.mediation.vungleadapter
 
 import android.content.Context
 import android.util.Size
-import com.chartboost.heliumsdk.domain.*
-import com.chartboost.heliumsdk.utils.PartnerLogController
-import com.chartboost.heliumsdk.utils.PartnerLogController.PartnerAdapterEvents.*
+import com.chartboost.chartboostmediationsdk.domain.*
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.*
 import com.vungle.ads.AdConfig
 import com.vungle.ads.BannerAd
 import com.vungle.ads.BannerAdListener
@@ -580,11 +580,12 @@ class VungleAdapter : PartnerAdapter {
             }
 
             fun loadVungleFullScreenAd(fullscreenAd: BaseFullscreenAd) {
-                fullscreenAd.adListener = VungleFullScreenAdListener(
-                    request = request,
-                    listener = listener,
-                    continuationRef = continuationRef
-                )
+                fullscreenAd.adListener =
+                    VungleFullScreenAdListener(
+                        request = request,
+                        listener = listener,
+                        continuationRef = continuationRef,
+                    )
                 fullscreenAd.load(adm)
             }
 
@@ -709,7 +710,6 @@ class VungleAdapter : PartnerAdapter {
         private val listener: PartnerAdListener,
         private val continuationRef: WeakReference<CancellableContinuation<Result<PartnerAd>>>,
     ) : FullscreenAdListener, RewardedAdListener {
-
         fun resumeOnce(result: Result<PartnerAd>) {
             continuationRef.get()?.let {
                 if (it.isActive) {

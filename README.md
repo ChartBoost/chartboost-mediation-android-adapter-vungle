@@ -13,7 +13,7 @@ The Chartboost Mediation Vungle adapter mediates Vungle via the Chartboost Media
 
 In your `build.gradle`, add the following entry:
 ```
-    implementation "com.chartboost:chartboost-mediation-adapter-vungle:4.7.3.0.0"
+    implementation "com.chartboost:chartboost-mediation-adapter-vungle:4.7.3.1.0"
 ```
 
 ## Contributions

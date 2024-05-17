@@ -66,13 +66,13 @@ class VungleAdapter : PartnerAdapter {
          */
         internal fun getChartboostMediationError(vungleError: VungleError?) =
             when (vungleError?.code) {
-                NO_SERVE, AD_FAILED_TO_DOWNLOAD -> ChartboostMediationError.CM_LOAD_FAILURE_NO_FILL
-                SERVER_RETRY_ERROR, ASSET_DOWNLOAD_ERROR -> ChartboostMediationError.CM_AD_SERVER_ERROR
-                NETWORK_ERROR, NETWORK_UNREACHABLE -> ChartboostMediationError.CM_NO_CONNECTIVITY
-                SDK_NOT_INITIALIZED -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_UNKNOWN
-                INVALID_APP_ID -> ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS
-                PLACEMENT_NOT_FOUND -> ChartboostMediationError.CM_LOAD_FAILURE_INVALID_PARTNER_PLACEMENT
-                else -> ChartboostMediationError.CM_PARTNER_ERROR
+                NO_SERVE, AD_FAILED_TO_DOWNLOAD -> ChartboostMediationError.LoadError.NoFill
+                SERVER_RETRY_ERROR, ASSET_DOWNLOAD_ERROR -> ChartboostMediationError.OtherError.AdServerError
+                NETWORK_ERROR, NETWORK_UNREACHABLE -> ChartboostMediationError.OtherError.NoConnectivity
+                SDK_NOT_INITIALIZED -> ChartboostMediationError.InitializationError.Unknown
+                INVALID_APP_ID -> ChartboostMediationError.InitializationError.InvalidCredentials
+                PLACEMENT_NOT_FOUND -> ChartboostMediationError.LoadError.InvalidPartnerPlacement
+                else -> ChartboostMediationError.OtherError.PartnerError
             }
 
         /**
@@ -149,7 +149,7 @@ class VungleAdapter : PartnerAdapter {
                 PartnerLogController.log(SETUP_FAILED, "Missing App ID.")
                 resumeOnce(
                     Result.failure(
-                        ChartboostMediationAdException(ChartboostMediationError.CM_INITIALIZATION_FAILURE_INVALID_CREDENTIALS),
+                        ChartboostMediationAdException(ChartboostMediationError.InitializationError.InvalidCredentials),
                     ),
                 )
             }
@@ -307,7 +307,7 @@ class VungleAdapter : PartnerAdapter {
                     loadFullscreenAd(context, request, partnerAdListener)
                 } else {
                     PartnerLogController.log(LOAD_FAILED)
-                    Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT))
+                    Result.failure(ChartboostMediationAdException(ChartboostMediationError.LoadError.UnsupportedAdFormat))
                 }
             }
         }
@@ -341,7 +341,7 @@ class VungleAdapter : PartnerAdapter {
                 } else {
                     PartnerLogController.log(SHOW_FAILED)
                     Result.failure(
-                        ChartboostMediationAdException(ChartboostMediationError.CM_SHOW_FAILURE_UNSUPPORTED_AD_FORMAT),
+                        ChartboostMediationAdException(ChartboostMediationError.ShowError.UnsupportedAdFormat),
                     )
                 }
             }
@@ -558,7 +558,7 @@ class VungleAdapter : PartnerAdapter {
                         resumeOnce(
                             Result.failure(
                                 ChartboostMediationAdException(
-                                    ChartboostMediationError.CM_LOAD_FAILURE_UNSUPPORTED_AD_FORMAT,
+                                    ChartboostMediationError.LoadError.UnsupportedAdFormat,
                                 ),
                             ),
                         )
@@ -617,7 +617,7 @@ class VungleAdapter : PartnerAdapter {
                     resumeOnce(
                         Result.failure(
                             ChartboostMediationAdException(
-                                ChartboostMediationError.CM_SHOW_FAILURE_AD_NOT_FOUND,
+                                ChartboostMediationError.ShowError.AdNotFound,
                             ),
                         ),
                     )
@@ -631,7 +631,7 @@ class VungleAdapter : PartnerAdapter {
                         resumeOnce(
                             Result.failure(
                                 ChartboostMediationAdException(
-                                    ChartboostMediationError.CM_SHOW_FAILURE_AD_NOT_READY,
+                                    ChartboostMediationError.ShowError.AdNotReady,
                                 ),
                             ),
                         )
@@ -645,7 +645,7 @@ class VungleAdapter : PartnerAdapter {
                     resumeOnce(
                         Result.failure(
                             ChartboostMediationAdException(
-                                ChartboostMediationError.CM_SHOW_FAILURE_WRONG_RESOURCE_TYPE,
+                                ChartboostMediationError.ShowError.WrongResourceType,
                             ),
                         ),
                     )
@@ -790,7 +790,7 @@ class VungleAdapter : PartnerAdapter {
             Result.success(partnerAd)
         } ?: run {
             PartnerLogController.log(INVALIDATE_FAILED, "Ad is null.")
-            Result.failure(ChartboostMediationAdException(ChartboostMediationError.CM_INVALIDATE_FAILURE_AD_NOT_FOUND))
+            Result.failure(ChartboostMediationAdException(ChartboostMediationError.InvalidateError.AdNotFound))
         }
     }
 }

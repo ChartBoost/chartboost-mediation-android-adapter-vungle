@@ -47,8 +47,8 @@ object VungleAdapterConfiguration : PartnerAdapterConfiguration {
         set(value) {
             field = value
             PartnerLogController.log(
-                    PartnerLogController.PartnerAdapterEvents.CUSTOM,
-                    "Vungle back button setting is ${if (value) "enabled" else "disabled"}.",
+                PartnerLogController.PartnerAdapterEvents.CUSTOM,
+                "Vungle back button setting is ${if (value) "enabled" else "disabled"}.",
             )
         }
 
@@ -62,15 +62,15 @@ object VungleAdapterConfiguration : PartnerAdapterConfiguration {
         set(value) {
             field = value
             PartnerLogController.log(
-                    PartnerLogController.PartnerAdapterEvents.CUSTOM,
-                    "Vungle ad orientation set to ${
-                        when (value) {
-                            AdConfig.PORTRAIT -> "PORTRAIT"
-                            AdConfig.LANDSCAPE -> "LANDSCAPE"
-                            AdConfig.AUTO_ROTATE -> "AUTO_ROTATE"
-                            else -> "UNSPECIFIED"
-                        }
-                    }.",
+                PartnerLogController.PartnerAdapterEvents.CUSTOM,
+                "Vungle ad orientation set to ${
+                    when (value) {
+                        AdConfig.PORTRAIT -> "PORTRAIT"
+                        AdConfig.LANDSCAPE -> "LANDSCAPE"
+                        AdConfig.AUTO_ROTATE -> "AUTO_ROTATE"
+                        else -> "UNSPECIFIED"
+                    }
+                }.",
             )
         }
 }

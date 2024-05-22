@@ -12,23 +12,38 @@ import android.content.Context
 import android.util.Size
 import com.chartboost.chartboostmediationsdk.domain.*
 import com.chartboost.chartboostmediationsdk.utils.PartnerLogController
-import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.*
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.BIDDER_INFO_FETCH_FAILED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.BIDDER_INFO_FETCH_STARTED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.BIDDER_INFO_FETCH_SUCCEEDED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.DID_CLICK
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.DID_DISMISS
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.DID_REWARD
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.DID_TRACK_IMPRESSION
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.GDPR_CONSENT_DENIED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.GDPR_CONSENT_GRANTED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.GDPR_CONSENT_UNKNOWN
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.GDPR_NOT_APPLICABLE
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.INVALIDATE_FAILED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.INVALIDATE_STARTED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.INVALIDATE_SUCCEEDED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.LOAD_FAILED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.LOAD_STARTED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.LOAD_SUCCEEDED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.SETUP_FAILED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.SETUP_STARTED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.SETUP_SUCCEEDED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.SHOW_FAILED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.SHOW_STARTED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.SHOW_SUCCEEDED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.USER_IS_NOT_UNDERAGE
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.USER_IS_UNDERAGE
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.USP_CONSENT_DENIED
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.USP_CONSENT_GRANTED
+import com.chartboost.core.consent.*
 import com.chartboost.mediation.vungleadapter.VungleAdapterConfiguration.adOrientation
 import com.chartboost.mediation.vungleadapter.VungleAdapterConfiguration.adapterVersion
 import com.chartboost.mediation.vungleadapter.VungleAdapterConfiguration.backBtnImmediatelyEnabled
-import com.vungle.ads.AdConfig
-import com.vungle.ads.BannerAd
-import com.vungle.ads.BannerAdListener
-import com.vungle.ads.BannerAdSize
-import com.vungle.ads.BaseAd
-import com.vungle.ads.BaseFullscreenAd
-import com.vungle.ads.FullscreenAdListener
-import com.vungle.ads.InitializationListener
-import com.vungle.ads.InterstitialAd
-import com.vungle.ads.RewardedAd
-import com.vungle.ads.RewardedAdListener
-import com.vungle.ads.VungleAds
-import com.vungle.ads.VungleError
+import com.vungle.ads.*
 import com.vungle.ads.VungleError.Companion.AD_FAILED_TO_DOWNLOAD
 import com.vungle.ads.VungleError.Companion.ASSET_DOWNLOAD_ERROR
 import com.vungle.ads.VungleError.Companion.INVALID_APP_ID
@@ -38,7 +53,6 @@ import com.vungle.ads.VungleError.Companion.NO_SERVE
 import com.vungle.ads.VungleError.Companion.PLACEMENT_NOT_FOUND
 import com.vungle.ads.VungleError.Companion.SDK_NOT_INITIALIZED
 import com.vungle.ads.VungleError.Companion.SERVER_RETRY_ERROR
-import com.vungle.ads.VunglePrivacySettings
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.Json
@@ -101,11 +115,11 @@ class VungleAdapter : PartnerAdapter {
     override suspend fun setUp(
         context: Context,
         partnerConfiguration: PartnerConfiguration,
-    ): Result<Unit> {
+    ): Result<Map<String, Any>> {
         PartnerLogController.log(SETUP_STARTED)
 
         return suspendCancellableCoroutine { continuation ->
-            fun resumeOnce(result: Result<Unit>) {
+            fun resumeOnce(result: Result<Map<String, Any>>) {
                 if (continuation.isActive) {
                     continuation.resume(result)
                 }
@@ -127,7 +141,8 @@ class VungleAdapter : PartnerAdapter {
                                     adapterVersion,
                                 )
 
-                                resumeOnce(Result.success(PartnerLogController.log(SETUP_SUCCEEDED)))
+                                PartnerLogController.log(SETUP_SUCCEEDED)
+                                resumeOnce(Result.success(emptyMap()))
                             }
 
                             override fun onError(vungleError: VungleError) {
@@ -157,124 +172,44 @@ class VungleAdapter : PartnerAdapter {
     }
 
     /**
-     * Notify Vungle of the user's CCPA consent status, if applicable.
+     * Notify Vungle if the user is underage.
      *
      * @param context The current [Context].
-     * @param hasGrantedCcpaConsent True if the user has granted CCPA consent, false otherwise.
-     * @param privacyString The CCPA privacy string.
+     * @param isUserUnderage True if the user is underage, false otherwise.
      */
-    override fun setCcpaConsent(
+    override fun setIsUserUnderage(
         context: Context,
-        hasGrantedCcpaConsent: Boolean,
-        privacyString: String,
+        isUserUnderage: Boolean,
     ) {
         PartnerLogController.log(
-            if (hasGrantedCcpaConsent) {
-                CCPA_CONSENT_GRANTED
+            if (isUserUnderage) {
+                USER_IS_UNDERAGE
             } else {
-                CCPA_CONSENT_DENIED
+                USER_IS_NOT_UNDERAGE
             },
         )
 
-        VunglePrivacySettings.setCCPAStatus(hasGrantedCcpaConsent)
-    }
-
-    /**
-     * Notify the Vungle SDK of the GDPR applicability and consent status.
-     *
-     * @param context The current [Context].
-     * @param applies True if GDPR applies, false otherwise.
-     * @param gdprConsentStatus The user's GDPR consent status.
-     */
-    override fun setGdpr(
-        context: Context,
-        applies: Boolean?,
-        gdprConsentStatus: GdprConsentStatus,
-    ) {
-        PartnerLogController.log(
-            when (applies) {
-                true -> GDPR_APPLICABLE
-                false -> GDPR_NOT_APPLICABLE
-                else -> GDPR_UNKNOWN
-            },
-        )
-
-        PartnerLogController.log(
-            when (gdprConsentStatus) {
-                GdprConsentStatus.GDPR_CONSENT_UNKNOWN -> GDPR_CONSENT_UNKNOWN
-                GdprConsentStatus.GDPR_CONSENT_GRANTED -> GDPR_CONSENT_GRANTED
-                GdprConsentStatus.GDPR_CONSENT_DENIED -> GDPR_CONSENT_DENIED
-            },
-        )
-
-        if (applies == true) {
-            VunglePrivacySettings.setGDPRStatus(
-                optIn = gdprConsentStatus == GdprConsentStatus.GDPR_CONSENT_GRANTED,
-                consentMessageVersion = "",
-            )
-        }
-    }
-
-    /**
-     * Set Vungle user's consent value using a boolean.
-     * This is for publishers to manually set the consent status.
-     * This uses CONSENT_GIVEN for true and CONSENT_DECLINED for false.
-     *
-     * @param context a context that will be passed to the SharedPreferences to set the user consent.
-     * @param applies True if GDPR applies, false otherwise.
-     * @param consented whether or not the user has consented.
-     */
-    fun setGdpr(
-        context: Context,
-        applies: Boolean?,
-        consented: Boolean,
-    ) {
-        setGdpr(
-            context,
-            applies,
-            if (consented) GdprConsentStatus.GDPR_CONSENT_GRANTED else GdprConsentStatus.GDPR_CONSENT_DENIED,
-        )
-    }
-
-    /**
-     * Notify Vungle of the COPPA subjectivity.
-     *
-     * @param context The current [Context].
-     * @param isSubjectToCoppa True if the user is subject to COPPA, false otherwise.
-     */
-    override fun setUserSubjectToCoppa(
-        context: Context,
-        isSubjectToCoppa: Boolean,
-    ) {
-        PartnerLogController.log(
-            if (isSubjectToCoppa) {
-                COPPA_SUBJECT
-            } else {
-                COPPA_NOT_SUBJECT
-            },
-        )
-
-        // NO-OP. See: https://support.vungle.com/hc/en-us/articles/360047780372#coppa-implementation-0-2
+        VunglePrivacySettings.setCOPPAStatus(isUserUnderage)
     }
 
     /**
      * Get a bid token if network bidding is supported.
      *
      * @param context The current [Context].
-     * @param request The [PreBidRequest] instance containing relevant data for the current bid request.
+     * @param request The [PartnerAdPreBidRequest] instance containing relevant data for the current bid request.
      *
      * @return A Map of biddable token Strings.
      */
     override suspend fun fetchBidderInformation(
         context: Context,
-        request: PreBidRequest,
-    ): Map<String, String> {
+        request: PartnerAdPreBidRequest,
+    ): Result<Map<String, String>> {
         PartnerLogController.log(BIDDER_INFO_FETCH_STARTED)
 
         val token = VungleAds.getBiddingToken(context) ?: ""
 
         PartnerLogController.log(if (token.isNotEmpty()) BIDDER_INFO_FETCH_SUCCEEDED else BIDDER_INFO_FETCH_FAILED)
-        return mapOf("bid_token" to token)
+        return Result.success(mapOf("bid_token" to token))
     }
 
     /**
@@ -293,22 +228,18 @@ class VungleAdapter : PartnerAdapter {
     ): Result<PartnerAd> {
         PartnerLogController.log(LOAD_STARTED)
 
-        return when (request.format.key) {
-            AdFormat.BANNER.key, "adaptive_banner" -> {
+        return when (request.format) {
+            PartnerAdFormats.BANNER -> {
                 loadBannerAd(context, request, partnerAdListener)
             }
 
-            AdFormat.INTERSTITIAL.key, AdFormat.REWARDED.key -> {
+            PartnerAdFormats.INTERSTITIAL, PartnerAdFormats.REWARDED, PartnerAdFormats.REWARDED_INTERSTITIAL -> {
                 loadFullscreenAd(context, request, partnerAdListener)
             }
 
             else -> {
-                if (request.format.key == "rewarded_interstitial") {
-                    loadFullscreenAd(context, request, partnerAdListener)
-                } else {
-                    PartnerLogController.log(LOAD_FAILED)
-                    Result.failure(ChartboostMediationAdException(ChartboostMediationError.LoadError.UnsupportedAdFormat))
-                }
+                PartnerLogController.log(LOAD_FAILED)
+                Result.failure(ChartboostMediationAdException(ChartboostMediationError.LoadError.UnsupportedAdFormat))
             }
         }
     }
@@ -327,23 +258,21 @@ class VungleAdapter : PartnerAdapter {
     ): Result<PartnerAd> {
         PartnerLogController.log(SHOW_STARTED)
 
-        return when (partnerAd.request.format.key) {
+        return when (partnerAd.request.format) {
             // Banner ads do not have a separate "show" mechanism.
-            AdFormat.BANNER.key, "adaptive_banner" -> {
+            PartnerAdFormats.BANNER -> {
                 PartnerLogController.log(SHOW_SUCCEEDED)
                 Result.success(partnerAd)
             }
 
-            AdFormat.INTERSTITIAL.key, AdFormat.REWARDED.key -> showFullscreenAd(partnerAd)
+            PartnerAdFormats.INTERSTITIAL, PartnerAdFormats.REWARDED, PartnerAdFormats.REWARDED_INTERSTITIAL ->
+                showFullscreenAd(partnerAd)
+
             else -> {
-                if (partnerAd.request.format.key == "rewarded_interstitial") {
-                    showFullscreenAd(partnerAd)
-                } else {
-                    PartnerLogController.log(SHOW_FAILED)
-                    Result.failure(
-                        ChartboostMediationAdException(ChartboostMediationError.ShowError.UnsupportedAdFormat),
-                    )
-                }
+                PartnerLogController.log(SHOW_FAILED)
+                Result.failure(
+                    ChartboostMediationAdException(ChartboostMediationError.ShowError.UnsupportedAdFormat),
+                )
             }
         }
     }
@@ -358,17 +287,56 @@ class VungleAdapter : PartnerAdapter {
     override suspend fun invalidate(partnerAd: PartnerAd): Result<PartnerAd> {
         PartnerLogController.log(INVALIDATE_STARTED)
 
-        return when (partnerAd.request.format.key) {
+        return when (partnerAd.request.format) {
             /**
              * Only invalidate banner ads.
              * For fullscreen ads, since Vungle does not provide an ad in the load callback, we don't
              * have an ad in PartnerAd to invalidate.
              */
-            AdFormat.BANNER.key, "adaptive_banner" -> destroyBannerAd(partnerAd)
+            PartnerAdFormats.BANNER -> destroyBannerAd(partnerAd)
             else -> {
                 PartnerLogController.log(INVALIDATE_SUCCEEDED)
                 Result.success(partnerAd)
             }
+        }
+    }
+
+    override fun setConsents(
+        context: Context,
+        consents: Map<ConsentKey, ConsentValue>,
+        modifiedKeys: Set<ConsentKey>
+    ) {
+        consents[ConsentKeys.GDPR_CONSENT_GIVEN]?.let {
+            if (it == ConsentValues.DOES_NOT_APPLY) {
+                PartnerLogController.log(GDPR_NOT_APPLICABLE)
+                return@let
+            }
+
+            PartnerLogController.log(
+                when (it) {
+                    ConsentValues.GRANTED -> GDPR_CONSENT_GRANTED
+                    ConsentValues.DENIED -> GDPR_CONSENT_DENIED
+                    else -> GDPR_CONSENT_UNKNOWN
+                },
+            )
+
+            VunglePrivacySettings.setGDPRStatus(
+                optIn = it == ConsentValues.GRANTED,
+                consentMessageVersion = "",
+            )
+        }
+
+        consents[ConsentKeys.USP]?.let {
+            val hasGrantedUspConsent = ConsentManagementPlatform.getUspConsentFromUspString(it)
+            PartnerLogController.log(
+                if (hasGrantedUspConsent) {
+                    USP_CONSENT_GRANTED
+                } else {
+                    USP_CONSENT_DENIED
+                },
+            )
+
+            VunglePrivacySettings.setCCPAStatus(hasGrantedUspConsent)
         }
     }
 
@@ -419,7 +387,7 @@ class VungleAdapter : PartnerAdapter {
                 BannerAd(
                     context,
                     request.partnerPlacement,
-                    getVungleBannerSize(request.size),
+                    getVungleBannerSize(request.bannerSize?.size),
                 )
 
             vungleBanner.adListener =
@@ -548,21 +516,17 @@ class VungleAdapter : PartnerAdapter {
             }
 
             when (request.format) {
-                AdFormat.INTERSTITIAL -> loadVungleFullScreenAd(InterstitialAd(context, request.partnerPlacement, adConfig))
-                AdFormat.REWARDED -> loadVungleFullScreenAd(RewardedAd(context, request.partnerPlacement, adConfig))
+                PartnerAdFormats.INTERSTITIAL -> loadVungleFullScreenAd(InterstitialAd(context, request.partnerPlacement, adConfig))
+                PartnerAdFormats.REWARDED, PartnerAdFormats.REWARDED_INTERSTITIAL -> loadVungleFullScreenAd(RewardedAd(context, request.partnerPlacement, adConfig))
                 else -> {
-                    if (request.format.key == "rewarded_interstitial") {
-                        loadVungleFullScreenAd(RewardedAd(context, request.partnerPlacement, adConfig))
-                    } else {
-                        PartnerLogController.log(LOAD_FAILED)
-                        resumeOnce(
-                            Result.failure(
-                                ChartboostMediationAdException(
-                                    ChartboostMediationError.LoadError.UnsupportedAdFormat,
-                                ),
+                    PartnerLogController.log(LOAD_FAILED)
+                    resumeOnce(
+                        Result.failure(
+                            ChartboostMediationAdException(
+                                ChartboostMediationError.LoadError.UnsupportedAdFormat,
                             ),
-                        )
-                    }
+                        ),
+                    )
                 }
             }
         }

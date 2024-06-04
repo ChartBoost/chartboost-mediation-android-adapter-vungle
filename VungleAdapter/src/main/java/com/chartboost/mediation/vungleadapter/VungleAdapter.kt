@@ -304,7 +304,7 @@ class VungleAdapter : PartnerAdapter {
     override fun setConsents(
         context: Context,
         consents: Map<ConsentKey, ConsentValue>,
-        modifiedKeys: Set<ConsentKey>
+        modifiedKeys: Set<ConsentKey>,
     ) {
         consents[ConsentKeys.GDPR_CONSENT_GIVEN]?.let {
             if (it == ConsentValues.DOES_NOT_APPLY) {
@@ -517,7 +517,10 @@ class VungleAdapter : PartnerAdapter {
 
             when (request.format) {
                 PartnerAdFormats.INTERSTITIAL -> loadVungleFullScreenAd(InterstitialAd(context, request.partnerPlacement, adConfig))
-                PartnerAdFormats.REWARDED, PartnerAdFormats.REWARDED_INTERSTITIAL -> loadVungleFullScreenAd(RewardedAd(context, request.partnerPlacement, adConfig))
+                PartnerAdFormats.REWARDED, PartnerAdFormats.REWARDED_INTERSTITIAL ->
+                    loadVungleFullScreenAd(
+                        RewardedAd(context, request.partnerPlacement, adConfig),
+                    )
                 else -> {
                     PartnerLogController.log(LOAD_FAILED)
                     resumeOnce(

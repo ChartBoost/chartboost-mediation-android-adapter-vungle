@@ -307,6 +307,9 @@ class VungleAdapter : PartnerAdapter {
         modifiedKeys: Set<ConsentKey>,
     ) {
         consents[ConsentKeys.GDPR_CONSENT_GIVEN]?.let {
+            if (VungleAdapterConfiguration.isGdprStatusOverridden) {
+                return@let
+            }
             if (it == ConsentValues.DOES_NOT_APPLY) {
                 PartnerLogController.log(GDPR_NOT_APPLICABLE)
                 return@let
@@ -327,6 +330,9 @@ class VungleAdapter : PartnerAdapter {
         }
 
         consents[ConsentKeys.USP]?.let {
+            if (VungleAdapterConfiguration.isCcpaStatusOverridden) {
+                return@let
+            }
             val hasGrantedUspConsent = ConsentManagementPlatform.getUspConsentFromUspString(it)
             PartnerLogController.log(
                 if (hasGrantedUspConsent) {

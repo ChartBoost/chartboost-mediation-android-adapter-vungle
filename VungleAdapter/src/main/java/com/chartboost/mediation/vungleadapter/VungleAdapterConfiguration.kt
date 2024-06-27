@@ -1,10 +1,8 @@
 package com.chartboost.mediation.vungleadapter
 
-import android.content.Context
 import com.chartboost.chartboostmediationsdk.domain.PartnerAdapterConfiguration
 import com.chartboost.chartboostmediationsdk.utils.PartnerLogController
 import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.CUSTOM
-import com.chartboost.core.consent.ConsentValues
 import com.vungle.ads.AdConfig
 import com.vungle.ads.VungleAds
 import com.vungle.ads.VunglePrivacySettings
@@ -101,7 +99,7 @@ object VungleAdapterConfiguration : PartnerAdapterConfiguration {
      *
      * @param ccpaConsentGiven True if CCPA consent has been given, false otherwise.
      */
-    fun setCcpaStatusOverride(context: Context, ccpaConsentGiven: Boolean) {
+    fun setCcpaStatusOverride(ccpaConsentGiven: Boolean) {
         isCcpaStatusOverridden = true
         VunglePrivacySettings.setCCPAStatus(ccpaConsentGiven)
 

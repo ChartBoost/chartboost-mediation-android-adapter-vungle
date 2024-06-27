@@ -2,8 +2,10 @@ package com.chartboost.mediation.vungleadapter
 
 import com.chartboost.chartboostmediationsdk.domain.PartnerAdapterConfiguration
 import com.chartboost.chartboostmediationsdk.utils.PartnerLogController
+import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.CUSTOM
 import com.vungle.ads.AdConfig
 import com.vungle.ads.VungleAds
+import com.vungle.ads.VunglePrivacySettings
 
 object VungleAdapterConfiguration : PartnerAdapterConfiguration {
     /**
@@ -47,7 +49,7 @@ object VungleAdapterConfiguration : PartnerAdapterConfiguration {
         set(value) {
             field = value
             PartnerLogController.log(
-                PartnerLogController.PartnerAdapterEvents.CUSTOM,
+                CUSTOM,
                 "Vungle back button setting is ${if (value) "enabled" else "disabled"}.",
             )
         }
@@ -62,7 +64,7 @@ object VungleAdapterConfiguration : PartnerAdapterConfiguration {
         set(value) {
             field = value
             PartnerLogController.log(
-                PartnerLogController.PartnerAdapterEvents.CUSTOM,
+                CUSTOM,
                 "Vungle ad orientation set to ${
                     when (value) {
                         AdConfig.PORTRAIT -> "PORTRAIT"
@@ -73,4 +75,44 @@ object VungleAdapterConfiguration : PartnerAdapterConfiguration {
                 }.",
             )
         }
+
+    /**
+     * Use to manually set the GDPR consent status on the Vungle SDK.
+     * This is generally unnecessary as the Mediation SDK will set the consent status automatically
+     * based on the latest consent info.
+     *
+     * @param gdprConsentGiven True if GDPR consent has been given, false otherwise.
+     */
+    fun setGdprStatusOverride(gdprConsentGiven: Boolean) {
+        isGdprStatusOverridden = true
+        VunglePrivacySettings.setGDPRStatus(
+            optIn = gdprConsentGiven,
+            consentMessageVersion = "",
+        )
+        PartnerLogController.log(CUSTOM, "Vungle GDPR status overridden to $gdprConsentGiven")
+    }
+
+    /**
+     * Use to manually set the CCPA consent status on the Vungle SDK.
+     * This is generally unnecessary as the Mediation SDK will set the consent status automatically
+     * based on the latest consent info.
+     *
+     * @param ccpaConsentGiven True if CCPA consent has been given, false otherwise.
+     */
+    fun setCcpaStatusOverride(ccpaConsentGiven: Boolean) {
+        isCcpaStatusOverridden = true
+        VunglePrivacySettings.setCCPAStatus(ccpaConsentGiven)
+
+        PartnerLogController.log(CUSTOM, "Vungle CCPA status overridden to $ccpaConsentGiven")
+    }
+
+    /**
+     * Whether GDPR status has been overridden by the publisher.
+     */
+    internal var isGdprStatusOverridden = false
+
+    /**
+     * Whether CCPA status has been overridden by the publisher.
+     */
+    internal var isCcpaStatusOverridden = false
 }

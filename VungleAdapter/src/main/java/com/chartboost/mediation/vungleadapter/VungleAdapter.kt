@@ -10,6 +10,7 @@ package com.chartboost.mediation.vungleadapter
 import android.app.Activity
 import android.content.Context
 import android.util.Size
+import com.chartboost.chartboostmediationsdk.ad.ChartboostMediationBannerAdView.ChartboostMediationBannerSize.Companion.asSize
 import com.chartboost.chartboostmediationsdk.domain.*
 import com.chartboost.chartboostmediationsdk.utils.PartnerLogController
 import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.BIDDER_INFO_FETCH_FAILED
@@ -39,7 +40,11 @@ import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerA
 import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.USER_IS_UNDERAGE
 import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.USP_CONSENT_DENIED
 import com.chartboost.chartboostmediationsdk.utils.PartnerLogController.PartnerAdapterEvents.USP_CONSENT_GRANTED
-import com.chartboost.core.consent.*
+import com.chartboost.core.consent.ConsentKey
+import com.chartboost.core.consent.ConsentKeys
+import com.chartboost.core.consent.ConsentManagementPlatform
+import com.chartboost.core.consent.ConsentValue
+import com.chartboost.core.consent.ConsentValues
 import com.chartboost.mediation.vungleadapter.VungleAdapterConfiguration.adOrientation
 import com.chartboost.mediation.vungleadapter.VungleAdapterConfiguration.adapterVersion
 import com.chartboost.mediation.vungleadapter.VungleAdapterConfiguration.backBtnImmediatelyEnabled
@@ -398,7 +403,7 @@ class VungleAdapter : PartnerAdapter {
                 BannerAd(
                     context,
                     request.partnerPlacement,
-                    getVungleBannerSize(request.bannerSize?.size),
+                    getVungleBannerSize(request.bannerSize?.asSize()),
                 )
 
             vungleBanner.adListener =

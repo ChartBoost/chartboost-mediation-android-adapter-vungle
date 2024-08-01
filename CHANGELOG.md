@@ -5,8 +5,6 @@ Adapters are compatible with any Chartboost Mediation SDK version within that ma
 
 ### 5.7.4.0.0
 - This version of the adapter supports Chartboost Mediation SDK version 5.+.
-
-### 4.7.4.0.0
 - This version of the adapter has been certified with Vungle SDK 7.4.0.
 
 ### 4.7.3.2.0

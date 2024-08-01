@@ -3,7 +3,8 @@
 Note the first digit of every adapter version corresponds to the major version of the Chartboost Mediation SDK compatible with that adapter. 
 Adapters are compatible with any Chartboost Mediation SDK version within that major version.
 
-### 4.7.4.0.0
+### 5.7.4.0.0
+- This version of the adapter supports Chartboost Mediation SDK version 5.+.
 - This version of the adapter has been certified with Vungle SDK 7.4.0.
 
 ### 4.7.3.2.0
@@ -14,6 +15,9 @@ Adapters are compatible with any Chartboost Mediation SDK version within that ma
 
 ### 4.7.3.0.0
 - This version of the adapter has been certified with Vungle SDK 7.3.0.
+
+### 4.7.1.0.2
+- Add function allow publishers to set a boolean consent value for the Vungle SDK consent info.
 
 ### 4.7.1.0.1
 - Fix memory leaks that could occur when fullscreen ads are shown from an `Activity`.

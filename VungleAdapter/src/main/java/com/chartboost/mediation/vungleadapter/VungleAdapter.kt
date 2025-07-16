@@ -49,15 +49,8 @@ import com.chartboost.mediation.vungleadapter.VungleAdapterConfiguration.adOrien
 import com.chartboost.mediation.vungleadapter.VungleAdapterConfiguration.adapterVersion
 import com.chartboost.mediation.vungleadapter.VungleAdapterConfiguration.backBtnImmediatelyEnabled
 import com.vungle.ads.*
-import com.vungle.ads.VungleError.Companion.AD_FAILED_TO_DOWNLOAD
-import com.vungle.ads.VungleError.Companion.ASSET_DOWNLOAD_ERROR
-import com.vungle.ads.VungleError.Companion.INVALID_APP_ID
-import com.vungle.ads.VungleError.Companion.NETWORK_ERROR
-import com.vungle.ads.VungleError.Companion.NETWORK_UNREACHABLE
-import com.vungle.ads.VungleError.Companion.NO_SERVE
-import com.vungle.ads.VungleError.Companion.PLACEMENT_NOT_FOUND
-import com.vungle.ads.VungleError.Companion.SDK_NOT_INITIALIZED
-import com.vungle.ads.VungleError.Companion.SERVER_RETRY_ERROR
+import com.vungle.ads.internal.protos.Sdk
+import com.vungle.ads.VungleError
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.Json
@@ -85,12 +78,18 @@ class VungleAdapter : PartnerAdapter {
          */
         internal fun getChartboostMediationError(vungleError: VungleError?) =
             when (vungleError?.code) {
-                NO_SERVE, AD_FAILED_TO_DOWNLOAD -> ChartboostMediationError.LoadError.NoFill
-                SERVER_RETRY_ERROR, ASSET_DOWNLOAD_ERROR -> ChartboostMediationError.OtherError.AdServerError
-                NETWORK_ERROR, NETWORK_UNREACHABLE -> ChartboostMediationError.OtherError.NoConnectivity
-                SDK_NOT_INITIALIZED -> ChartboostMediationError.InitializationError.Unknown
-                INVALID_APP_ID -> ChartboostMediationError.InitializationError.InvalidCredentials
-                PLACEMENT_NOT_FOUND -> ChartboostMediationError.LoadError.InvalidPartnerPlacement
+                Sdk.SDKError.Reason.AD_RESPONSE_EMPTY.number ->
+                    ChartboostMediationError.LoadError.NoFill
+                Sdk.SDKError.Reason.AD_RESPONSE_RETRY_AFTER.number, Sdk.SDKError.Reason.AD_LOAD_FAIL_RETRY_AFTER.number ->
+                    ChartboostMediationError.OtherError.AdServerError
+                Sdk.SDKError.Reason.AD_RESPONSE_TIMED_OUT.number, Sdk.SDKError.Reason.API_REQUEST_ERROR.number ->
+                    ChartboostMediationError.OtherError.NoConnectivity
+                Sdk.SDKError.Reason.SDK_NOT_INITIALIZED.number ->
+                    ChartboostMediationError.InitializationError.Unknown
+                Sdk.SDKError.Reason.INVALID_APP_ID.number ->
+                    ChartboostMediationError.InitializationError.InvalidCredentials
+                Sdk.SDKError.Reason.INVALID_PLACEMENT_ID.number ->
+                    ChartboostMediationError.LoadError.InvalidPartnerPlacement
                 else -> ChartboostMediationError.OtherError.PartnerError
             }
 
@@ -142,7 +141,7 @@ class VungleAdapter : PartnerAdapter {
                         object : InitializationListener {
                             override fun onSuccess() {
                                 VungleAds.setIntegrationName(
-                                    VungleAds.WrapperFramework.vunglehbs,
+                                    VungleWrapperFramework.vunglehbs,
                                     adapterVersion,
                                 )
 

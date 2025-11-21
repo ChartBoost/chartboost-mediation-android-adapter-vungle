@@ -210,10 +210,34 @@ class VungleAdapter : PartnerAdapter {
     ): Result<Map<String, String>> {
         PartnerLogController.log(BIDDER_INFO_FETCH_STARTED)
 
-        val token = VungleAds.getBiddingToken(context) ?: ""
+        return suspendCancellableCoroutine { continuation ->
+            fun resumeOnce(result: Result<Map<String, String>>) {
+                if (continuation.isActive) {
+                    continuation.resume(result)
+                }
+            }
 
-        PartnerLogController.log(if (token.isNotEmpty()) BIDDER_INFO_FETCH_SUCCEEDED else BIDDER_INFO_FETCH_FAILED)
-        return Result.success(mapOf("bid_token" to token))
+            VungleAds.getBiddingToken(
+                context,
+                object : BidTokenCallback {
+                    override fun onBidTokenCollected(bidToken: String) {
+                        PartnerLogController.log(BIDDER_INFO_FETCH_SUCCEEDED)
+                        resumeOnce(Result.success(mapOf("bid_token" to bidToken)))
+                    }
+
+                    override fun onBidTokenError(errorMessage: String) {
+                        PartnerLogController.log(BIDDER_INFO_FETCH_FAILED, "Error: $errorMessage")
+                        resumeOnce(
+                            Result.failure(
+                                ChartboostMediationAdException(
+                                    ChartboostMediationError.PrebidError.Exception
+                                )
+                            )
+                        )
+                    }
+                }
+            )
+        }
     }
 
     /**

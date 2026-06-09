@@ -141,7 +141,7 @@ class VungleAdapter : PartnerAdapter {
                         object : InitializationListener {
                             override fun onSuccess() {
                                 VungleAds.setIntegrationName(
-                                    VungleWrapperFramework.vunglehbs,
+                                    "vunglehbs",
                                     adapterVersion,
                                 )
 

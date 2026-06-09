@@ -14,6 +14,12 @@ All official releases can be found on this repository's [releases page](https://
 ### 5.7.7.4.0
 - This version of the adapter has been certified with Vungle SDK 7.7.4.
 
+### 5.7.7.3.0
+- This version of the adapter has been certified with Vungle SDK 7.7.3.
+
+### 5.7.7.2.0
+- This version of the adapter has been certified with Vungle SDK 7.7.2.
+
 ### 5.7.7.1.0
 - This version of the adapter has been certified with Vungle SDK 7.7.1.
 
